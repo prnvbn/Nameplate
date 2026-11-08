@@ -54,6 +54,8 @@ func getAppWindows(_ localizedName: String) -> [String] {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
+    private var overlay: NSPanel?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         let item = NSStatusBar.system.statusItem(
             withLength: NSStatusItem.variableLength
@@ -61,6 +63,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         item.button?.title = "NP"
         statusItem = item
         print("Nameplate launched")
+
+        print(getAppWindows("Zed"))
 
         let menu = NSMenu()
         let quitItem = NSMenuItem(
@@ -72,6 +76,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         quitItem.target = self
         menu.addItem(quitItem)
         item.menu = menu
+
+        showTestOverlay()
+    }
+
+    func showTestOverlay() {
+        let rect = NSRect(x: 220, y: 220, width: 400, height: 90)
+        let panel = NSPanel(
+            contentRect: rect,
+            styleMask: [.borderless], backing: .buffered, defer: false)
+        panel.isOpaque = false
+        panel.backgroundColor = .red
+        panel.ignoresMouseEvents = true
+        panel.level = .floating
+        panel.hidesOnDeactivate = false
+
+        let tf = NSTextField(labelWithString: "TEST")
+        tf.font = NSFont.systemFont(ofSize: 18)
+
+        tf.frame = NSRect(x: 20, y: 30, width: 200, height: 40)
+
+        panel.contentView?.addSubview(tf)
+        panel.orderFrontRegardless()
+        self.overlay = panel
     }
 
     @objc func quitNameplate() {
