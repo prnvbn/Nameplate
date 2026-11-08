@@ -1,4 +1,55 @@
 import AppKit
+import ApplicationServices
+
+func getAppWindows(_ localizedName: String) -> [String] {
+    guard AXIsProcessTrusted() else {
+        print("Accessibility permission required")
+        return []
+    }
+
+    let apps = NSWorkspace.shared.runningApplications
+        .filter { $0.localizedName == localizedName }
+
+    var titles: [String] = []
+
+    for app in apps {
+        let axApp = AXUIElementCreateApplication(
+            app.processIdentifier
+        )
+
+        var value: CFTypeRef?
+
+        let result = AXUIElementCopyAttributeValue(
+            axApp,
+            kAXWindowsAttribute as CFString,
+            &value
+        )
+
+        guard result == .success,
+            let windows = value as? [AXUIElement]
+        else {
+            continue
+        }
+
+        for window in windows {
+            var titleValue: CFTypeRef?
+
+            let result = AXUIElementCopyAttributeValue(
+                window,
+                kAXTitleAttribute as CFString,
+                &titleValue
+            )
+
+            if result == .success,
+                let title = titleValue as? String
+            {
+                titles.append(title)
+            }
+        }
+    }
+
+    return titles
+}
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
