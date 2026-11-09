@@ -1,14 +1,19 @@
 import AppKit
 import ApplicationServices
 
+let targetApplicationBundleIdentifier = "dev.zed.Zed"
+
 struct MissionControlThumbnail {
+    let windowID: Int
     let title: String
     let frame: CGRect
 }
 
 @MainActor
-func zedMissionControlThumbnails(titles: [String]) -> [MissionControlThumbnail] {
-    guard AXIsProcessTrusted(), !titles.isEmpty else { return [] }
+func missionControlThumbnails(for appBundleIdentifier: String) -> [MissionControlThumbnail] {
+    guard AXIsProcessTrusted() else { return [] }
+    let appWindowIDs = windowIDs(for: appBundleIdentifier)
+    guard !appWindowIDs.isEmpty else { return [] }
 
     var thumbnails: [MissionControlThumbnail] = []
     for bundleIdentifier in ["com.apple.WindowManager", "com.apple.dock"] {
@@ -22,13 +27,15 @@ func zedMissionControlThumbnails(titles: [String]) -> [MissionControlThumbnail] 
             let element = pending.removeLast()
             visited += 1
 
-            if let name = axString(element, kAXTitleAttribute as CFString)
-                ?? axString(element, kAXDescriptionAttribute as CFString),
-                let title = titles.first(where: { name == $0 || name.contains($0) }),
+            if let identifier = axString(element, kAXIdentifierAttribute as CFString),
+                identifier.hasPrefix(appBundleIdentifier + ".space."),
+                let windowID = axWindowID(element),
+                appWindowIDs.contains(windowID),
+                let title = axString(element, kAXTitleAttribute as CFString),
                 let frame = axFrame(element),
                 frame.width > 0, frame.height > 0
             {
-                thumbnails.append(MissionControlThumbnail(title: title, frame: frame))
+                thumbnails.append(MissionControlThumbnail(windowID: windowID, title: title, frame: frame))
             }
 
             if let children = axChildren(element) {
@@ -40,13 +47,44 @@ func zedMissionControlThumbnails(titles: [String]) -> [MissionControlThumbnail] 
 }
 
 @MainActor
-func inspectMissionControl() {
-    let titles = getAppWindowTitles("Zed")
-    let thumbnails = zedMissionControlThumbnails(titles: titles)
-    print("Found \(thumbnails.count) Zed Mission Control thumbnails")
+func inspectMissionControl(for appBundleIdentifier: String) {
+    let thumbnails = missionControlThumbnails(for: appBundleIdentifier)
+    print("Found \(thumbnails.count) \(appBundleIdentifier) Mission Control thumbnails")
     for thumbnail in thumbnails {
-        print("Zed thumbnail: \(thumbnail.title), frame: \(thumbnail.frame)")
+        print("Thumbnail: id=\(thumbnail.windowID), title=\(thumbnail.title), frame=\(thumbnail.frame)")
     }
+}
+
+private func windowIDs(for appBundleIdentifier: String) -> Set<Int> {
+    let appPIDs = Set(NSWorkspace.shared.runningApplications
+        .filter { $0.bundleIdentifier == appBundleIdentifier }
+        .map(\.processIdentifier))
+    guard let windows = CGWindowListCopyWindowInfo(.optionAll, kCGNullWindowID)
+        as? [[String: Any]] else { return [] }
+
+    return Set(windows.compactMap { window in
+        guard let owner = window[kCGWindowOwnerPID as String] as? NSNumber,
+            appPIDs.contains(owner.int32Value),
+            let number = window[kCGWindowNumber as String] as? NSNumber
+        else { return nil }
+        return number.intValue
+    })
+}
+
+private func axWindowID(_ element: AXUIElement) -> Int? {
+    var value: CFTypeRef?
+    guard AXUIElementCopyAttributeValue(element, "wid" as CFString, &value) == .success else {
+        return nil
+    }
+    if let number = value as? NSNumber { return number.intValue }
+    if let string = value as? String { return Int(string) }
+    return nil
+}
+
+private func axString(_ element: AXUIElement, _ attribute: CFString) -> String? {
+    var value: CFTypeRef?
+    guard AXUIElementCopyAttributeValue(element, attribute, &value) == .success else { return nil }
+    return value as? String
 }
 
 private func axChildren(_ element: AXUIElement) -> [AXUIElement]? {
@@ -54,12 +92,6 @@ private func axChildren(_ element: AXUIElement) -> [AXUIElement]? {
     guard AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &value) == .success
     else { return nil }
     return value as? [AXUIElement]
-}
-
-private func axString(_ element: AXUIElement, _ attribute: CFString) -> String? {
-    var value: CFTypeRef?
-    guard AXUIElementCopyAttributeValue(element, attribute, &value) == .success else { return nil }
-    return value as? String
 }
 
 private func axFrame(_ element: AXUIElement) -> CGRect? {

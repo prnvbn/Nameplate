@@ -51,6 +51,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if isVisible {
                 print("Mission Control entered")
                 self.refreshMissionControlTitles()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+                    guard let self, self.overlayRefreshTimer != nil else { return }
+                    inspectMissionControl(for: targetApplicationBundleIdentifier)
+                }
                 let timer = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
                     MainActor.assumeIsolated {
                         self?.refreshMissionControlTitles()
@@ -68,13 +72,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func refreshMissionControlTitles() {
-        let titles = getAppWindowTitles("Zed")
-        let thumbnails = zedMissionControlThumbnails(titles: titles)
+        let thumbnails = missionControlThumbnails(for: targetApplicationBundleIdentifier)
         titleOverlay.show(thumbnails: thumbnails)
     }
 
     @objc func inspectNow() {
-        inspectMissionControl()
+        inspectMissionControl(for: targetApplicationBundleIdentifier)
     }
 
     @objc func quitNameplate() {

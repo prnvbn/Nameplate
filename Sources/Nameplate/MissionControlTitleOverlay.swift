@@ -2,12 +2,7 @@ import AppKit
 
 @MainActor
 final class MissionControlTitleOverlay {
-    private struct ThumbnailKey: Hashable {
-        let title: String
-        let occurrence: Int
-    }
-
-    private var panels: [ThumbnailKey: NSPanel] = [:]
+    private var panels: [Int: NSPanel] = [:]
 
     func show(thumbnails: [MissionControlThumbnail]) {
         guard !thumbnails.isEmpty else {
@@ -15,27 +10,24 @@ final class MissionControlTitleOverlay {
             return
         }
 
-        var occurrences: [String: Int] = [:]
-        var currentKeys: Set<ThumbnailKey> = []
+        var currentIDs: Set<Int> = []
 
         for thumbnail in thumbnails {
-            let occurrence = occurrences[thumbnail.title, default: 0]
-            occurrences[thumbnail.title] = occurrence + 1
-            let key = ThumbnailKey(title: thumbnail.title, occurrence: occurrence)
-            currentKeys.insert(key)
+            let windowID = thumbnail.windowID
+            currentIDs.insert(windowID)
 
             let frame = labelFrame(for: thumbnail.frame)
-            if let panel = panels[key] {
+            if let panel = panels[windowID] {
                 if panel.frame != frame {
                     panel.setFrame(frame, display: true)
                 }
             } else {
-                panels[key] = makePanel(title: thumbnail.title, frame: frame)
+                panels[windowID] = makePanel(title: thumbnail.title, frame: frame)
             }
         }
 
-        for key in Set(panels.keys).subtracting(currentKeys) {
-            panels.removeValue(forKey: key)?.close()
+        for windowID in Set(panels.keys).subtracting(currentIDs) {
+            panels.removeValue(forKey: windowID)?.close()
         }
     }
 
