@@ -3,8 +3,9 @@ import AppKit
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
-    private var overlay: NSPanel?
     private let missionControlMonitor = MissionControlMonitor()
+    private let titleOverlay = MissionControlTitleOverlay()
+    private var overlayRefreshTimer: Timer?
 
     func applicationDidFinishLaunching(
         _ notification: Notification
@@ -41,81 +42,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         item.menu = menu
 
-        let windows = getAppWindows("Zed")
-
-        print("Found \(windows.count) Zed windows")
-
-        for window in windows {
-            print("Zed window: \(window.title), frame: \(window.frame)")
-        }
-
         startMissionControlMonitoring()
     }
 
     func startMissionControlMonitoring() {
-        missionControlMonitor.start { isVisible in
+        missionControlMonitor.start { [weak self] isVisible in
+            guard let self else { return }
             if isVisible {
                 print("Mission Control entered")
-                inspectMissionControl()
+                self.refreshMissionControlTitles()
+                let timer = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
+                    MainActor.assumeIsolated {
+                        self?.refreshMissionControlTitles()
+                    }
+                }
+                self.overlayRefreshTimer = timer
+                RunLoop.main.add(timer, forMode: .common)
             } else {
                 print("Mission Control exited")
+                self.overlayRefreshTimer?.invalidate()
+                self.overlayRefreshTimer = nil
+                self.titleOverlay.hide()
             }
         }
     }
 
+    private func refreshMissionControlTitles() {
+        let titles = getAppWindowTitles("Zed")
+        let thumbnails = zedMissionControlThumbnails(titles: titles)
+        titleOverlay.show(thumbnails: thumbnails)
+    }
 
     @objc func inspectNow() {
         inspectMissionControl()
     }
 
-    func showTestOverlay() {
-        let rect = NSRect(
-            x: 220,
-            y: 220,
-            width: 400,
-            height: 90
-        )
-
-        let panel = NSPanel(
-            contentRect: rect,
-            styleMask: [.borderless],
-            backing: .buffered,
-            defer: false
-        )
-
-        panel.isOpaque = false
-        panel.backgroundColor = .clear
-        panel.ignoresMouseEvents = true
-        panel.hidesOnDeactivate = false
-        panel.level = .floating
-
-        panel.collectionBehavior = [
-            .canJoinAllSpaces,
-            .stationary,
-            .fullScreenAuxiliary,
-        ]
-
-        let tf = NSTextField(
-            labelWithString: "TEST"
-        )
-
-        tf.font = NSFont.systemFont(ofSize: 18)
-        tf.textColor = .white
-
-        tf.frame = NSRect(
-            x: 20,
-            y: 30,
-            width: 200,
-            height: 40
-        )
-
-        panel.contentView?.addSubview(tf)
-
-        self.overlay = panel
-        panel.orderFrontRegardless()
-    }
-
     @objc func quitNameplate() {
+        overlayRefreshTimer?.invalidate()
+        titleOverlay.hide()
         missionControlMonitor.stop()
         NSApp.terminate(nil)
     }

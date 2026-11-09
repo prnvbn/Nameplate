@@ -4,8 +4,8 @@ import AppKit
 /// arriving on macOS 27. Window metadata does not require Accessibility access.
 @MainActor
 final class MissionControlMonitor {
-    private static let pollingInterval: TimeInterval = 0.15
-    private static let timerTolerance: TimeInterval = 0.03
+    private static let pollingInterval: TimeInterval = 0.10
+    private static let timerTolerance: TimeInterval = 0.02
 
     private var timer: Timer?
     private var visibility = MissionControlVisibility()
@@ -84,25 +84,13 @@ final class MissionControlMonitor {
     }
 }
 
-/// Emits entry immediately, and waits for three absent samples before exit to
-/// tolerate brief compositor gaps during gestures and Space transitions.
+/// Emits a change whenever the sampled surface visibility changes.
 struct MissionControlVisibility {
     private(set) var isVisible = false
-    private var absentSamples = 0
 
     mutating func update(surfacePresent: Bool) -> Bool? {
-        if surfacePresent {
-            absentSamples = 0
-            guard !isVisible else { return nil }
-            isVisible = true
-            return true
-        }
-
-        guard isVisible else { return nil }
-        absentSamples += 1
-        guard absentSamples >= 3 else { return nil }
-        isVisible = false
-        absentSamples = 0
-        return false
+        guard surfacePresent != isVisible else { return nil }
+        isVisible = surfacePresent
+        return isVisible
     }
 }
