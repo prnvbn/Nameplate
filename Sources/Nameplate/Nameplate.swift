@@ -52,21 +52,74 @@ func getAppWindows(_ localizedName: String) -> [String] {
 }
 
 @MainActor
+func inspectMissionControl() {
+    guard AXIsProcessTrusted() else {
+        print("Accessibility permission required")
+        return
+    }
+
+    for bundleIdentifier in ["com.apple.WindowManager", "com.apple.dock"] {
+        guard let app = NSRunningApplication.runningApplications(
+            withBundleIdentifier: bundleIdentifier
+        ).first else {
+            continue
+        }
+
+        let element = AXUIElementCreateApplication(app.processIdentifier)
+        var childrenValue: CFTypeRef?
+        let result = AXUIElementCopyAttributeValue(
+            element, kAXChildrenAttribute as CFString, &childrenValue
+        )
+
+        guard result == .success,
+            let children = childrenValue as? [AXUIElement]
+        else {
+            print("Could not read \(bundleIdentifier) children:", result)
+            continue
+        }
+
+        print("\(bundleIdentifier) children:", children.count)
+        for child in children {
+            var identifierValue: CFTypeRef?
+            if AXUIElementCopyAttributeValue(
+                child, kAXIdentifierAttribute as CFString, &identifierValue
+            ) == .success, let identifier = identifierValue as? String {
+                print("Child:", identifier)
+            }
+        }
+    }
+}
+
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private var overlay: NSPanel?
+    private let missionControlMonitor = MissionControlMonitor()
 
-    func applicationDidFinishLaunching(_ notification: Notification) {
+    func applicationDidFinishLaunching(
+        _ notification: Notification
+    ) {
+        print("Nameplate launched")
+
         let item = NSStatusBar.system.statusItem(
             withLength: NSStatusItem.variableLength
         )
         item.button?.title = "NP"
         statusItem = item
-        print("Nameplate launched")
-
-        print(getAppWindows("Zed"))
 
         let menu = NSMenu()
+
+        let inspectItem = NSMenuItem(
+            title: "Inspect Mission Control",
+            action: #selector(inspectNow),
+            keyEquivalent: ""
+        )
+
+        inspectItem.target = self
+        menu.addItem(inspectItem)
+
+        menu.addItem(NSMenuItem.separator())
+
         let quitItem = NSMenuItem(
             title: "Quit Nameplate",
             action: #selector(quitNameplate),
@@ -75,33 +128,85 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         quitItem.target = self
         menu.addItem(quitItem)
+
         item.menu = menu
 
-        showTestOverlay()
+        let titles = getAppWindows("Zed")
+
+        print("Found \(titles.count) Zed window titles")
+
+        for title in titles {
+            print("Zed window:", title)
+        }
+
+        startMissionControlMonitoring()
+    }
+
+    func startMissionControlMonitoring() {
+        missionControlMonitor.start { isVisible in
+            if isVisible {
+                print("Mission Control entered")
+                inspectMissionControl()
+            } else {
+                print("Mission Control exited")
+            }
+        }
+    }
+
+
+    @objc func inspectNow() {
+        inspectMissionControl()
     }
 
     func showTestOverlay() {
-        let rect = NSRect(x: 220, y: 220, width: 400, height: 90)
+        let rect = NSRect(
+            x: 220,
+            y: 220,
+            width: 400,
+            height: 90
+        )
+
         let panel = NSPanel(
             contentRect: rect,
-            styleMask: [.borderless], backing: .buffered, defer: false)
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+
         panel.isOpaque = false
-        panel.backgroundColor = .red
+        panel.backgroundColor = .clear
         panel.ignoresMouseEvents = true
-        panel.level = .floating
         panel.hidesOnDeactivate = false
+        panel.level = .floating
 
-        let tf = NSTextField(labelWithString: "TEST")
+        panel.collectionBehavior = [
+            .canJoinAllSpaces,
+            .stationary,
+            .fullScreenAuxiliary,
+        ]
+
+        let tf = NSTextField(
+            labelWithString: "TEST"
+        )
+
         tf.font = NSFont.systemFont(ofSize: 18)
+        tf.textColor = .white
 
-        tf.frame = NSRect(x: 20, y: 30, width: 200, height: 40)
+        tf.frame = NSRect(
+            x: 20,
+            y: 30,
+            width: 200,
+            height: 40
+        )
 
         panel.contentView?.addSubview(tf)
-        panel.orderFrontRegardless()
+
         self.overlay = panel
+        panel.orderFrontRegardless()
     }
 
     @objc func quitNameplate() {
+        missionControlMonitor.stop()
         NSApp.terminate(nil)
     }
 }
@@ -111,8 +216,12 @@ struct Nameplate {
     static func main() {
         let app = NSApplication.shared
         let delegate = AppDelegate()
+
         app.delegate = delegate
         app.setActivationPolicy(.accessory)
-        app.run()
+
+        withExtendedLifetime(delegate) {
+            app.run()
+        }
     }
 }
