@@ -4,7 +4,7 @@ import AppKit
 final class MissionControlTitleOverlay {
     private var panels: [Int: NSPanel] = [:]
 
-    func show(thumbnails: [MissionControlThumbnail]) {
+    func show(thumbnails: [MissionControlThumbnail], preset: NameplatePreset) {
         guard !thumbnails.isEmpty else {
             hide()
             return
@@ -22,7 +22,7 @@ final class MissionControlTitleOverlay {
                     panel.setFrame(frame, display: true)
                 }
             } else {
-                panels[windowID] = makePanel(title: thumbnail.title, frame: frame)
+                panels[windowID] = makePanel(title: thumbnail.title, frame: frame, preset: preset)
             }
         }
 
@@ -46,7 +46,7 @@ final class MissionControlTitleOverlay {
         )
     }
 
-    private func makePanel(title: String, frame: NSRect) -> NSPanel {
+    private func makePanel(title: String, frame: NSRect, preset: NameplatePreset) -> NSPanel {
         let panel = NSPanel(contentRect: frame, styleMask: [.borderless], backing: .buffered, defer: false)
         panel.isOpaque = false
         panel.backgroundColor = .clear
@@ -55,16 +55,32 @@ final class MissionControlTitleOverlay {
         panel.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.screenSaverWindow)))
         panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
 
+        let background = NSView(frame: NSRect(origin: .zero, size: frame.size))
+        background.wantsLayer = true
+        background.layer?.backgroundColor = preset.backgroundColor.cgColor
+        background.layer?.cornerRadius = preset.cornerRadius
+        background.autoresizingMask = [.width, .height]
+        panel.contentView?.addSubview(background)
+
         let label = NSTextField(labelWithString: title)
-        label.frame = NSRect(origin: .zero, size: frame.size)
+        label.cell = VerticallyCenteredTitleCell(textCell: title)
+        label.frame = NSRect(x: 8, y: 0, width: frame.width - 16, height: frame.height)
         label.autoresizingMask = [.width, .height]
-        label.textColor = .white
-        label.backgroundColor = NSColor.black.withAlphaComponent(0.7)
-        label.drawsBackground = true
-        label.font = .systemFont(ofSize: 13, weight: .semibold)
+        label.textColor = preset.textColor
+        label.font = preset.font
         label.lineBreakMode = .byTruncatingMiddle
         panel.contentView?.addSubview(label)
         panel.orderFrontRegardless()
         return panel
+    }
+}
+
+private final class VerticallyCenteredTitleCell: NSTextFieldCell {
+    override func drawingRect(forBounds rect: NSRect) -> NSRect {
+        var drawingRect = super.drawingRect(forBounds: rect)
+        let textHeight = cellSize(forBounds: rect).height
+        drawingRect.origin.y += (drawingRect.height - textHeight) / 2
+        drawingRect.size.height = textHeight
+        return drawingRect
     }
 }

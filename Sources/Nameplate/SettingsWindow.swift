@@ -24,13 +24,13 @@ enum SelectedApplications {
 final class SettingsWindow: NSWindowController {
     init(onChange: @escaping () -> Void) {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 560, height: 520),
+            contentRect: NSRect(x: 0, y: 0, width: 600, height: 650),
             styleMask: [.titled, .closable, .resizable],
             backing: .buffered,
             defer: false
         )
         window.title = "Nameplate Settings"
-        window.minSize = NSSize(width: 500, height: 440)
+        window.minSize = NSSize(width: 500, height: 500)
         window.center()
         window.contentView = NSHostingView(rootView: ApplicationSettingsView(onChange: onChange))
         super.init(window: window)
@@ -52,6 +52,7 @@ private struct ApplicationSettingsView: View {
     @State private var selectedIdentifiers = SelectedApplications.bundleIdentifiers
     @State private var search = ""
     @State private var manualIdentifier = ""
+    @State private var selectedPreset = NameplatePreset.selected
 
     private var filteredApps: [InstalledApplication] {
         guard !search.isEmpty else { return installedApps }
@@ -62,6 +63,7 @@ private struct ApplicationSettingsView: View {
     }
 
     var body: some View {
+        ScrollView {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Applications").font(.title2.bold())
@@ -80,7 +82,7 @@ private struct ApplicationSettingsView: View {
                 }
                 .buttonStyle(.plain)
             }
-            .frame(minHeight: 150)
+            .frame(height: 160)
             .overlay {
                 if filteredApps.isEmpty {
                     Text("No matching applications")
@@ -116,10 +118,48 @@ private struct ApplicationSettingsView: View {
                     }
                 }
             }
-            .frame(minHeight: 100)
+            .frame(height: 110)
+
+            Divider()
+            Text("Nameplate style").font(.title2.bold())
+            Text("Choose a preset. More styling controls can be added here later.")
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 12) {
+                ForEach(NameplatePreset.allCases) { preset in
+                    Button {
+                        selectedPreset = preset
+                        NameplatePreset.selected = preset
+                        onChange()
+                    } label: {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Window title")
+                                .font(Font(preset.font))
+                                .foregroundStyle(Color(nsColor: preset.textColor))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(Color(nsColor: preset.backgroundColor),
+                                            in: RoundedRectangle(cornerRadius: preset.cornerRadius))
+                            Text(preset.name).fontWeight(.semibold)
+                            Text(preset.description)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.leading)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 105, alignment: .leading)
+                        .padding(12)
+                        .background(selectedPreset == preset ? Color.accentColor.opacity(0.12) : Color(nsColor: .controlBackgroundColor),
+                                    in: RoundedRectangle(cornerRadius: 10))
+                        .overlay(RoundedRectangle(cornerRadius: 10)
+                            .stroke(selectedPreset == preset ? Color.accentColor : .clear, lineWidth: 2))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
         }
         .padding(24)
-        .frame(minWidth: 500, minHeight: 440)
+        .frame(minWidth: 500)
+        }
     }
 
     private func applicationRow(_ app: InstalledApplication) -> some View {

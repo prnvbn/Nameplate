@@ -22,7 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let menu = NSMenu()
 
         let settingsItem = NSMenuItem(
-            title: "Settings",
+            title: "Settings...",
             action: #selector(openSettings),
             keyEquivalent: ","
         )
@@ -73,7 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func refreshMissionControlTitles() {
         let thumbnails = missionControlThumbnails(for: SelectedApplications.bundleIdentifiers)
-        titleOverlay.show(thumbnails: thumbnails)
+        titleOverlay.show(thumbnails: thumbnails, preset: NameplatePreset.selected)
     }
 
     @objc private func openSettings() {
