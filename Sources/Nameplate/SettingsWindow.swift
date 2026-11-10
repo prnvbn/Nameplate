@@ -24,13 +24,13 @@ enum SelectedApplications {
 final class SettingsWindow: NSWindowController {
     init(onChange: @escaping () -> Void) {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 600, height: 650),
+            contentRect: NSRect(x: 0, y: 0, width: 850, height: 610),
             styleMask: [.titled, .closable, .resizable],
             backing: .buffered,
             defer: false
         )
         window.title = "Nameplate Settings"
-        window.minSize = NSSize(width: 500, height: 500)
+        window.minSize = NSSize(width: 720, height: 520)
         window.center()
         window.contentView = NSHostingView(rootView: ApplicationSettingsView(onChange: onChange))
         super.init(window: window)
@@ -47,12 +47,25 @@ final class SettingsWindow: NSWindowController {
 
 @MainActor
 private struct ApplicationSettingsView: View {
+    private enum Page: String, CaseIterable {
+        case applications = "Applications"
+        case appearance = "Nameplate Style"
+
+        var symbol: String {
+            switch self {
+            case .applications: "square.stack.3d.up"
+            case .appearance: "paintpalette"
+            }
+        }
+    }
+
     let onChange: () -> Void
     @State private var installedApps = InstalledApplications.scan()
     @State private var selectedIdentifiers = SelectedApplications.bundleIdentifiers
     @State private var search = ""
     @State private var manualIdentifier = ""
     @State private var selectedPreset = NameplatePreset.selected
+    @State private var page: Page? = .applications
 
     private var filteredApps: [InstalledApplication] {
         guard !search.isEmpty else { return installedApps }
@@ -63,103 +76,161 @@ private struct ApplicationSettingsView: View {
     }
 
     var body: some View {
-        ScrollView {
-        VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Applications").font(.title2.bold())
-                Text("Show window titles for these apps in Mission Control.")
-                    .foregroundStyle(.secondary)
-            }
-
-            TextField("Search installed apps", text: $search)
-                .textFieldStyle(.roundedBorder)
-
-            List(filteredApps, id: \.bundleIdentifier) { app in
-                Button {
-                    add(app.bundleIdentifier)
-                } label: {
-                    applicationRow(app)
-                }
-                .buttonStyle(.plain)
-            }
-            .frame(height: 160)
-            .overlay {
-                if filteredApps.isEmpty {
-                    Text("No matching applications")
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            HStack {
-                TextField("Or enter a bundle identifier", text: $manualIdentifier)
-                    .textFieldStyle(.roundedBorder)
-                    .onSubmit { addManualIdentifier() }
-                Button("Add App") { addManualIdentifier() }
-                    .disabled(manualIdentifier.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
-
-            Text("Selected applications").font(.headline)
-            List {
-                ForEach(selectedIdentifiers, id: \.self) { identifier in
-                    HStack {
-                        if let app = installedApps.first(where: { $0.bundleIdentifier == identifier }) {
-                            applicationRow(app)
-                        } else {
-                            Label(identifier, systemImage: "app")
-                        }
-                        Spacer()
-                        Button {
-                            remove(identifier)
-                        } label: {
-                            Image(systemName: "minus.circle.fill")
-                        }
-                        .buttonStyle(.borderless)
-                        .help("Remove \(identifier)")
-                    }
-                }
-            }
-            .frame(height: 110)
-
+        HStack(spacing: 0) {
+            sidebar
+                .frame(width: 220)
+                .frame(maxHeight: .infinity)
+                .background(Color(nsColor: .underPageBackgroundColor))
             Divider()
-            Text("Nameplate style").font(.title2.bold())
-            Text("Choose a preset. More styling controls can be added here later.")
-                .foregroundStyle(.secondary)
-
-            HStack(spacing: 12) {
-                ForEach(NameplatePreset.allCases) { preset in
-                    Button {
-                        selectedPreset = preset
-                        NameplatePreset.selected = preset
-                        onChange()
-                    } label: {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("Window title")
-                                .font(Font(preset.font))
-                                .foregroundStyle(Color(nsColor: preset.textColor))
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(Color(nsColor: preset.backgroundColor),
-                                            in: RoundedRectangle(cornerRadius: preset.cornerRadius))
-                            Text(preset.name).fontWeight(.semibold)
-                            Text(preset.description)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.leading)
-                        }
-                        .frame(maxWidth: .infinity, minHeight: 105, alignment: .leading)
-                        .padding(12)
-                        .background(selectedPreset == preset ? Color.accentColor.opacity(0.12) : Color(nsColor: .controlBackgroundColor),
-                                    in: RoundedRectangle(cornerRadius: 10))
-                        .overlay(RoundedRectangle(cornerRadius: 10)
-                            .stroke(selectedPreset == preset ? Color.accentColor : .clear, lineWidth: 2))
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    Text((page ?? .applications).rawValue)
+                        .font(.system(size: 24, weight: .semibold))
+                    if page == .applications {
+                        applicationsPage
+                    } else {
+                        appearancePage
                     }
-                    .buttonStyle(.plain)
+                }
+                .frame(maxWidth: 680, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .padding(28)
+            }
+            .background(Color(nsColor: .windowBackgroundColor))
+        }
+        .frame(minWidth: 720, minHeight: 520)
+    }
+
+    private var sidebar: some View {
+        List(selection: $page) {
+            Section {
+                ForEach(Page.allCases, id: \.self) { candidate in
+                    Label(candidate.rawValue, systemImage: candidate.symbol)
+                        .tag(candidate)
+                }
+            } header: {
+                Text("Nameplate")
+            }
+        }
+        .listStyle(.sidebar)
+    }
+
+    private var applicationsPage: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("Choose the apps whose window titles appear in Mission Control.")
+                .foregroundStyle(.secondary)
+            settingsCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Add applications").font(.headline)
+                    TextField("Search installed apps", text: $search)
+                        .textFieldStyle(.roundedBorder)
+                    List(filteredApps, id: \.bundleIdentifier) { app in
+                        let isSelected = selectedIdentifiers.contains(app.bundleIdentifier)
+                        Button { toggle(app.bundleIdentifier) } label: {
+                            HStack {
+                                applicationRow(app)
+                                if isSelected {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(Color.accentColor)
+                                        .accessibilityLabel("Selected")
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .listRowBackground(isSelected ? Color.accentColor.opacity(0.14) : Color.clear)
+                    }
+                    .frame(height: 210)
+                    .overlay {
+                        if filteredApps.isEmpty {
+                            Text("No matching applications").foregroundStyle(.secondary)
+                        }
+                    }
+                    HStack {
+                        TextField("Or enter a bundle identifier", text: $manualIdentifier)
+                            .textFieldStyle(.roundedBorder)
+                            .onSubmit { addManualIdentifier() }
+                        Button("Add App") { addManualIdentifier() }
+                            .disabled(manualIdentifier.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+                }
+            }
+            settingsCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Selected applications").font(.headline)
+                    if selectedIdentifiers.isEmpty {
+                        Text("No applications selected")
+                            .foregroundStyle(.secondary)
+                            .padding(.vertical, 12)
+                    } else {
+                        ForEach(selectedIdentifiers, id: \.self) { identifier in
+                            HStack {
+                                if let app = installedApps.first(where: { $0.bundleIdentifier == identifier }) {
+                                    applicationRow(app)
+                                } else {
+                                    Label(identifier, systemImage: "app")
+                                }
+                                Button { remove(identifier) } label: {
+                                    Image(systemName: "minus.circle.fill")
+                                }
+                                .buttonStyle(.borderless)
+                                .help("Remove \(identifier)")
+                            }
+                            if identifier != selectedIdentifiers.last { Divider() }
+                        }
+                    }
                 }
             }
         }
-        .padding(24)
-        .frame(minWidth: 500)
+    }
+
+    private var appearancePage: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("Choose a nameplate preset. More styling controls can go here later.")
+                .foregroundStyle(.secondary)
+            settingsCard {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(NameplatePreset.allCases) { preset in
+                        Button {
+                            selectedPreset = preset
+                            NameplatePreset.selected = preset
+                            onChange()
+                        } label: {
+                            HStack(spacing: 16) {
+                                Text("Window title")
+                                    .font(Font(preset.font))
+                                    .foregroundStyle(Color(nsColor: preset.textColor))
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .background(Color(nsColor: preset.backgroundColor),
+                                                in: RoundedRectangle(cornerRadius: preset.cornerRadius))
+                                    .frame(width: 150, alignment: .leading)
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(preset.name).fontWeight(.medium)
+                                    Text(preset.description).font(.caption).foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                if selectedPreset == preset {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(Color.accentColor)
+                                }
+                            }
+                            .padding(.vertical, 14)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        if preset != NameplatePreset.allCases.last { Divider() }
+                    }
+                }
+            }
         }
+    }
+
+    private func settingsCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        content()
+            .padding(18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(nsColor: .controlBackgroundColor),
+                        in: RoundedRectangle(cornerRadius: 14))
     }
 
     private func applicationRow(_ app: InstalledApplication) -> some View {
@@ -190,6 +261,14 @@ private struct ApplicationSettingsView: View {
     private func remove(_ identifier: String) {
         selectedIdentifiers.removeAll { $0 == identifier }
         persist()
+    }
+
+    private func toggle(_ identifier: String) {
+        if selectedIdentifiers.contains(identifier) {
+            remove(identifier)
+        } else {
+            add(identifier)
+        }
     }
 
     private func persist() {
