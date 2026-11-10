@@ -11,47 +11,47 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
 
     var name: String {
         switch self {
-        case .classic: "Classic"
-        case .subtle: "Subtle"
-        case .accent: "Accent"
+        case .classic: "Graphite"
+        case .subtle: "Porcelain"
+        case .accent: "Slate"
         }
     }
 
     var description: String {
         switch self {
-        case .classic: "Dark label with strong contrast"
-        case .subtle: "Quiet label with a lighter background"
-        case .accent: "Blue label that stands out"
+        case .classic: "Soft charcoal with warm white text"
+        case .subtle: "Warm light surface with dark text"
+        case .accent: "Muted blue-gray with white text"
         }
     }
 
     var backgroundColor: NSColor {
         switch self {
-        case .classic: .black.withAlphaComponent(0.78)
-        case .subtle: .windowBackgroundColor.withAlphaComponent(0.82)
-        case .accent: .systemBlue.withAlphaComponent(0.92)
+        case .classic: NSColor(calibratedRed: 0.12, green: 0.14, blue: 0.17, alpha: 0.94)
+        case .subtle: NSColor(calibratedRed: 0.94, green: 0.93, blue: 0.90, alpha: 0.96)
+        case .accent: NSColor(calibratedRed: 0.16, green: 0.24, blue: 0.31, alpha: 0.95)
         }
     }
 
     var textColor: NSColor {
         switch self {
-        case .classic, .accent: .white
-        case .subtle: .labelColor
+        case .classic, .accent: NSColor(calibratedWhite: 0.97, alpha: 1)
+        case .subtle: NSColor(calibratedWhite: 0.12, alpha: 1)
         }
     }
 
     var font: NSFont {
         switch self {
-        case .classic: .systemFont(ofSize: 13, weight: .semibold)
+        case .classic: .systemFont(ofSize: 13, weight: .medium)
         case .subtle: .systemFont(ofSize: 12, weight: .medium)
-        case .accent: .systemFont(ofSize: 13, weight: .bold)
+        case .accent: .systemFont(ofSize: 13, weight: .semibold)
         }
     }
 
     var cornerRadius: CGFloat {
         switch self {
-        case .classic: 5
-        case .subtle: 8
+        case .classic: 7
+        case .subtle: 7
         case .accent: 7
         }
     }

@@ -16,7 +16,7 @@ final class MissionControlTitleOverlay {
             let windowID = thumbnail.windowID
             currentIDs.insert(windowID)
 
-            let frame = labelFrame(for: thumbnail.frame)
+            let frame = labelFrame(for: thumbnail, preset: preset)
             if let panel = panels[windowID] {
                 if panel.frame != frame {
                     panel.setFrame(frame, display: true)
@@ -36,13 +36,15 @@ final class MissionControlTitleOverlay {
         panels.removeAll()
     }
 
-    private func labelFrame(for thumbnailFrame: CGRect) -> NSRect {
-        let width = min(max(thumbnailFrame.width - 16, 80), 400)
+    private func labelFrame(for thumbnail: MissionControlThumbnail, preset: NameplatePreset) -> NSRect {
+        let textWidth = (thumbnail.title as NSString).size(withAttributes: [.font: preset.font]).width
+        let width = min(textWidth + 24, max(thumbnail.frame.width - 16, 80), 360)
+        let height: CGFloat = 28
         return NSRect(
-            x: thumbnailFrame.minX + 8,
-            y: (NSScreen.screens.first?.frame.maxY ?? 0) - thumbnailFrame.minY - 30,
+            x: thumbnail.frame.midX - width / 2,
+            y: (NSScreen.screens.first?.frame.maxY ?? 0) - thumbnail.frame.midY - height / 2,
             width: width,
-            height: 24
+            height: height
         )
     }
 
@@ -64,7 +66,7 @@ final class MissionControlTitleOverlay {
 
         let label = NSTextField(labelWithString: title)
         label.cell = VerticallyCenteredTitleCell(textCell: title)
-        label.frame = NSRect(x: 8, y: 0, width: frame.width - 16, height: frame.height)
+        label.frame = NSRect(x: 12, y: 0, width: frame.width - 24, height: frame.height)
         label.autoresizingMask = [.width, .height]
         label.textColor = preset.textColor
         label.font = preset.font
