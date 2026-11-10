@@ -4,6 +4,9 @@ import SwiftUI
 private let selectedApplicationsDefaultsKey = "selectedApplicationBundleIdentifiers"
 
 private let appVersion: String = {
+    if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
+        return version
+    }
     guard let url = Bundle.module.url(forResource: "version", withExtension: "txt"),
         let version = try? String(contentsOf: url, encoding: .utf8)
     else { return "Unknown" }
