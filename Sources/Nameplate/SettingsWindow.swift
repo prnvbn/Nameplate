@@ -188,7 +188,16 @@ private struct ApplicationSettingsView: View {
             Text("Choose a nameplate preset. More styling controls can go here later.")
                 .foregroundStyle(.secondary)
             settingsCard {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text("Preview").font(.headline)
+                    nameplatePreview
+                }
+            }
+            settingsCard {
                 VStack(alignment: .leading, spacing: 0) {
+                    Text("Presets")
+                        .font(.headline)
+                        .padding(.bottom, 8)
                     ForEach(NameplatePreset.allCases) { preset in
                         Button {
                             selectedPreset = preset
@@ -223,6 +232,51 @@ private struct ApplicationSettingsView: View {
                 }
             }
         }
+    }
+
+    private var nameplatePreview: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(nsColor: .underPageBackgroundColor))
+            VStack(spacing: 0) {
+                HStack(spacing: 5) {
+                    ForEach(0..<3) { _ in
+                        Circle().fill(Color.secondary.opacity(0.45))
+                            .frame(width: 7, height: 7)
+                    }
+                    Spacer()
+                    Text("Example window")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                }
+                .padding(10)
+                Divider()
+                VStack(alignment: .leading, spacing: 9) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Color.secondary.opacity(0.18))
+                        .frame(width: 140, height: 8)
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Color.secondary.opacity(0.12))
+                        .frame(maxWidth: .infinity, minHeight: 8, maxHeight: 8)
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Color.secondary.opacity(0.12))
+                        .frame(width: 190, height: 8)
+                    Spacer()
+                }
+                .padding(16)
+            }
+            Text("Example window")
+                .font(Font(selectedPreset.font))
+                .foregroundStyle(Color(nsColor: selectedPreset.textColor))
+                .padding(.horizontal, 12)
+                .frame(height: 28)
+                .background(Color(nsColor: selectedPreset.backgroundColor),
+                            in: RoundedRectangle(cornerRadius: selectedPreset.cornerRadius))
+        }
+        .frame(height: 190)
+        .overlay(RoundedRectangle(cornerRadius: 12)
+            .stroke(Color.secondary.opacity(0.2), lineWidth: 1))
     }
 
     private func settingsCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
