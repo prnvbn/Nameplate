@@ -10,6 +10,10 @@ let package = Package(
         // Targets can depend on other targets in this package and products from dependencies.
         .executableTarget(
             name: "Nameplate",
+            path: ".",
+            exclude: ["Tests"],
+            sources: ["Sources/Nameplate"],
+            resources: [.copy("version.txt")],
             swiftSettings: [
                 .enableUpcomingFeature("ApproachableConcurrency"),
             ],

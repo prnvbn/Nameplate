@@ -3,6 +3,13 @@ import SwiftUI
 
 private let selectedApplicationsDefaultsKey = "selectedApplicationBundleIdentifiers"
 
+private let appVersion: String = {
+    guard let url = Bundle.module.url(forResource: "version", withExtension: "txt"),
+        let version = try? String(contentsOf: url, encoding: .utf8)
+    else { return "Unknown" }
+    return version.trimmingCharacters(in: .whitespacesAndNewlines)
+}()
+
 @MainActor
 enum SelectedApplications {
     static var bundleIdentifiers: [String] {
@@ -50,11 +57,13 @@ private struct ApplicationSettingsView: View {
     private enum Page: String, CaseIterable {
         case applications = "Applications"
         case appearance = "Nameplate Style"
+        case about = "About"
 
         var symbol: String {
             switch self {
             case .applications: "square.stack.3d.up"
             case .appearance: "paintpalette"
+            case .about: "info.circle"
             }
         }
     }
@@ -88,8 +97,10 @@ private struct ApplicationSettingsView: View {
                         .font(.system(size: 24, weight: .semibold))
                     if page == .applications {
                         applicationsPage
-                    } else {
+                    } else if page == .appearance {
                         appearancePage
+                    } else {
+                        aboutPage
                     }
                 }
                 .frame(maxWidth: 680, alignment: .leading)
@@ -229,6 +240,25 @@ private struct ApplicationSettingsView: View {
                         .buttonStyle(.plain)
                         if preset != NameplatePreset.allCases.last { Divider() }
                     }
+                }
+            }
+        }
+    }
+
+    private var aboutPage: some View {
+        settingsCard {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Nameplate")
+                    .font(.title2.bold())
+                Text("See window titles at a glance in Mission Control.")
+                    .foregroundStyle(.secondary)
+                Divider()
+                HStack {
+                    Text("Version")
+                    Spacer()
+                    Text(appVersion)
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
                 }
             }
         }
