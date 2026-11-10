@@ -302,8 +302,8 @@ private struct ApplicationSettingsView: View {
             Text("Example window")
                 .font(Font(selectedPreset.font))
                 .foregroundStyle(Color(nsColor: selectedPreset.textColor))
-                .padding(.horizontal, 12)
-                .frame(height: 28)
+                .padding(.horizontal, 18)
+                .frame(height: 42)
                 .background(Color(nsColor: selectedPreset.backgroundColor),
                             in: RoundedRectangle(cornerRadius: selectedPreset.cornerRadius))
         }

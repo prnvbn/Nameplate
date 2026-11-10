@@ -27,9 +27,9 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
 
     var backgroundColor: NSColor {
         switch self {
-        case .classic: NSColor(calibratedRed: 0.12, green: 0.14, blue: 0.17, alpha: 0.94)
-        case .subtle: NSColor(calibratedRed: 0.94, green: 0.93, blue: 0.90, alpha: 0.96)
-        case .accent: NSColor(calibratedRed: 0.16, green: 0.24, blue: 0.31, alpha: 0.95)
+        case .classic: NSColor(calibratedRed: 0.12, green: 0.14, blue: 0.17, alpha: 1)
+        case .subtle: NSColor(calibratedRed: 0.94, green: 0.93, blue: 0.90, alpha: 1)
+        case .accent: NSColor(calibratedRed: 0.16, green: 0.24, blue: 0.31, alpha: 1)
         }
     }
 
