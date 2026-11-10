@@ -6,6 +6,8 @@ BUILD_DIR = $(shell swift build -c release --show-bin-path)
 DIST_DIR := dist
 APP := $(DIST_DIR)/$(APP_NAME).app
 ZIP := $(DIST_DIR)/$(APP_NAME)-$(VERSION)-macos-arm64.zip
+DMG := $(DIST_DIR)/$(APP_NAME)-$(VERSION)-macos-arm64.dmg
+DMG_STAGE := $(DIST_DIR)/dmg-stage
 
 .PHONY: test release clean-release
 
@@ -15,7 +17,7 @@ test:
 release: test
 	@test -n "$(VERSION)" || (echo "VERSION is required" >&2; exit 1)
 	swift build -c release --product $(APP_NAME)
-	rm -rf "$(APP)" "$(ZIP)"
+	rm -rf "$(APP)" "$(ZIP)" "$(DMG)" "$(DMG_STAGE)"
 	mkdir -p "$(APP)/Contents/MacOS" "$(APP)/Contents/Resources"
 	cp "$(BUILD_DIR)/$(APP_NAME)" "$(APP)/Contents/MacOS/$(APP_NAME)"
 	cp -R "$(BUILD_DIR)/Nameplate_Nameplate.bundle" "$(APP)/Contents/Resources/"
@@ -36,7 +38,13 @@ release: test
 	fi
 	codesign --verify --deep --strict "$(APP)"
 	cd "$(DIST_DIR)" && ditto -c -k --sequesterRsrc --keepParent "$(APP_NAME).app" "$(notdir $(ZIP))"
-	@echo "Built $(ZIP)"
+	mkdir -p "$(DMG_STAGE)"
+	ditto "$(APP)" "$(DMG_STAGE)/$(APP_NAME).app"
+	ln -s /Applications "$(DMG_STAGE)/Applications"
+	hdiutil create -volname "$(APP_NAME)" -srcfolder "$(DMG_STAGE)" -ov -format UDZO "$(DMG)"
+	hdiutil verify "$(DMG)"
+	rm -rf "$(DMG_STAGE)"
+	@echo "Built $(ZIP) and $(DMG)"
 
 clean-release:
 	rm -rf "$(DIST_DIR)"

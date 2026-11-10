@@ -36,7 +36,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Nameplate-${{ steps.version.outputs.value }}-macos-arm64
-          path: dist/Nameplate-${{ steps.version.outputs.value }}-macos-arm64.zip
+          path: |
+            dist/Nameplate-${{ steps.version.outputs.value }}-macos-arm64.zip
+            dist/Nameplate-${{ steps.version.outputs.value }}-macos-arm64.dmg
       - name: Create tag and GitHub prerelease
         env:
           GH_TOKEN: ${{ github.token }}
@@ -53,11 +55,14 @@ jobs:
               -f "ref=refs/tags/$TAG" -f "sha=$GITHUB_SHA"
           fi
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "dist/Nameplate-${VERSION}-macos-arm64.zip" --clobber
+            gh release upload "$TAG" \
+              "dist/Nameplate-${VERSION}-macos-arm64.zip" \
+              "dist/Nameplate-${VERSION}-macos-arm64.dmg" --clobber
           else
             gh release create "$TAG" \
               "dist/Nameplate-${VERSION}-macos-arm64.zip" \
+              "dist/Nameplate-${VERSION}-macos-arm64.dmg" \
               --title "Nameplate ${VERSION}" \
-              --notes "Experimental Apple silicon build. Ad hoc signed and not notarized; macOS Gatekeeper may block it." \
+              --notes-file .github/release-notes.md \
               --prerelease
           fi
