@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let missionControlMonitor = MissionControlMonitor()
     private let titleOverlay = MissionControlTitleOverlay()
     private var overlayRefreshTimer: Timer?
+    private var settingsWindow: SettingsWindow?
 
     func applicationDidFinishLaunching(
         _ notification: Notification
@@ -20,14 +21,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let menu = NSMenu()
 
-        let inspectItem = NSMenuItem(
-            title: "Inspect Mission Control",
-            action: #selector(inspectNow),
-            keyEquivalent: ""
+        let settingsItem = NSMenuItem(
+            title: "Settings",
+            action: #selector(openSettings),
+            keyEquivalent: ","
         )
-
-        inspectItem.target = self
-        menu.addItem(inspectItem)
+        settingsItem.target = self
+        menu.addItem(settingsItem)
 
         menu.addItem(NSMenuItem.separator())
 
@@ -53,7 +53,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.refreshMissionControlTitles()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
                     guard let self, self.overlayRefreshTimer != nil else { return }
-                    inspectMissionControl(for: targetApplicationBundleIdentifier)
+                    inspectMissionControl(for: SelectedApplications.bundleIdentifiers)
                 }
                 let timer = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
                     MainActor.assumeIsolated {
@@ -72,12 +72,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func refreshMissionControlTitles() {
-        let thumbnails = missionControlThumbnails(for: targetApplicationBundleIdentifier)
+        let thumbnails = missionControlThumbnails(for: SelectedApplications.bundleIdentifiers)
         titleOverlay.show(thumbnails: thumbnails)
     }
 
-    @objc func inspectNow() {
-        inspectMissionControl(for: targetApplicationBundleIdentifier)
+    @objc private func openSettings() {
+        if settingsWindow == nil {
+            settingsWindow = SettingsWindow { [weak self] in
+                self?.titleOverlay.hide()
+                self?.refreshMissionControlTitles()
+            }
+        }
+        settingsWindow?.present()
     }
 
     @objc func quitNameplate() {

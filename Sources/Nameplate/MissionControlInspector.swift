@@ -1,8 +1,6 @@
 import AppKit
 import ApplicationServices
 
-let targetApplicationBundleIdentifier = "dev.zed.Zed"
-
 struct MissionControlThumbnail {
     let windowID: Int
     let title: String
@@ -10,9 +8,9 @@ struct MissionControlThumbnail {
 }
 
 @MainActor
-func missionControlThumbnails(for appBundleIdentifier: String) -> [MissionControlThumbnail] {
+func missionControlThumbnails(for appBundleIdentifiers: [String]) -> [MissionControlThumbnail] {
     guard AXIsProcessTrusted() else { return [] }
-    let appWindowIDs = windowIDs(for: appBundleIdentifier)
+    let appWindowIDs = windowIDs(for: appBundleIdentifiers)
     guard !appWindowIDs.isEmpty else { return [] }
 
     var thumbnails: [MissionControlThumbnail] = []
@@ -28,7 +26,7 @@ func missionControlThumbnails(for appBundleIdentifier: String) -> [MissionContro
             visited += 1
 
             if let identifier = axString(element, kAXIdentifierAttribute as CFString),
-                identifier.hasPrefix(appBundleIdentifier + ".space."),
+                appBundleIdentifiers.contains(where: { identifier.hasPrefix($0 + ".space.") }),
                 let windowID = axWindowID(element),
                 appWindowIDs.contains(windowID),
                 let title = axString(element, kAXTitleAttribute as CFString),
@@ -47,17 +45,17 @@ func missionControlThumbnails(for appBundleIdentifier: String) -> [MissionContro
 }
 
 @MainActor
-func inspectMissionControl(for appBundleIdentifier: String) {
-    let thumbnails = missionControlThumbnails(for: appBundleIdentifier)
-    print("Found \(thumbnails.count) \(appBundleIdentifier) Mission Control thumbnails")
+func inspectMissionControl(for appBundleIdentifiers: [String]) {
+    let thumbnails = missionControlThumbnails(for: appBundleIdentifiers)
+    print("Found \(thumbnails.count) Mission Control thumbnails for \(appBundleIdentifiers)")
     for thumbnail in thumbnails {
         print("Thumbnail: id=\(thumbnail.windowID), title=\(thumbnail.title), frame=\(thumbnail.frame)")
     }
 }
 
-private func windowIDs(for appBundleIdentifier: String) -> Set<Int> {
+private func windowIDs(for appBundleIdentifiers: [String]) -> Set<Int> {
     let appPIDs = Set(NSWorkspace.shared.runningApplications
-        .filter { $0.bundleIdentifier == appBundleIdentifier }
+        .filter { appBundleIdentifiers.contains($0.bundleIdentifier ?? "") }
         .map(\.processIdentifier))
     guard let windows = CGWindowListCopyWindowInfo(.optionAll, kCGNullWindowID)
         as? [[String: Any]] else { return [] }
