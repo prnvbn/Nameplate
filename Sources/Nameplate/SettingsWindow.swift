@@ -386,7 +386,7 @@ struct ApplicationSettingsView: View {
 
     private var appearancePage: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text("Choose a nameplate preset. More styling controls can go here later.")
+            Text("Choose a nameplate preset.")
                 .foregroundStyle(.secondary)
             settingsCard {
                 VStack(alignment: .leading, spacing: 14) {
@@ -406,13 +406,7 @@ struct ApplicationSettingsView: View {
                             onChange()
                         } label: {
                             HStack(spacing: 16) {
-                                Text("Window title")
-                                    .font(Font(preset.font))
-                                    .foregroundStyle(Color(nsColor: preset.textColor))
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 6)
-                                    .background(Color(nsColor: preset.backgroundColor),
-                                                in: RoundedRectangle(cornerRadius: preset.cornerRadius))
+                                presetPlate("Window title", preset: preset, compact: true)
                                     .frame(width: 150, alignment: .leading)
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text(preset.name).fontWeight(.medium)
@@ -486,17 +480,38 @@ struct ApplicationSettingsView: View {
                 }
                 .padding(16)
             }
-            Text("Example window")
-                .font(Font(selectedPreset.font))
-                .foregroundStyle(Color(nsColor: selectedPreset.textColor))
-                .padding(.horizontal, 18)
-                .frame(height: 42)
-                .background(Color(nsColor: selectedPreset.backgroundColor),
-                            in: RoundedRectangle(cornerRadius: selectedPreset.cornerRadius))
+            presetPlate("Example window", preset: selectedPreset)
         }
         .frame(height: 190)
         .overlay(RoundedRectangle(cornerRadius: 12)
             .stroke(Color.secondary.opacity(0.2), lineWidth: 1))
+    }
+
+    @ViewBuilder
+    private func presetPlate(_ title: String, preset: NameplatePreset, compact: Bool = false) -> some View {
+        if preset == .licensePlate {
+            Text(preset.displayText(title))
+                .font(Font(compact ? .monospacedSystemFont(ofSize: 12, weight: .bold) : preset.font))
+                .foregroundStyle(Color(nsColor: preset.textColor))
+                .lineLimit(1)
+                .padding(.horizontal, compact ? 8 : 12)
+                .frame(height: compact ? 25 : 34)
+            .background(Color(red: 0.94, green: 0.93, blue: 0.87),
+                        in: RoundedRectangle(cornerRadius: 4))
+            .overlay(RoundedRectangle(cornerRadius: 4)
+                .stroke(Color(white: 0.25), lineWidth: 1.5))
+            .padding(3)
+            .background(Color(nsColor: preset.backgroundColor),
+                        in: RoundedRectangle(cornerRadius: preset.cornerRadius))
+        } else {
+            Text(title)
+                .font(Font(preset.font))
+                .foregroundStyle(Color(nsColor: preset.textColor))
+                .padding(.horizontal, compact ? 10 : 18)
+                .frame(height: compact ? 30 : 42)
+                .background(Color(nsColor: preset.backgroundColor),
+                            in: RoundedRectangle(cornerRadius: preset.cornerRadius))
+        }
     }
 
     private func settingsCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
