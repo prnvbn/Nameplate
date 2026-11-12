@@ -58,12 +58,14 @@ final class SettingsWindow: NSWindowController {
 @MainActor
 struct ApplicationSettingsView: View {
     private enum Page: String, CaseIterable {
+        case general = "General"
         case applications = "Applications"
         case appearance = "Nameplate Style"
         case about = "About"
 
         var symbol: String {
             switch self {
+            case .general: "gearshape"
             case .applications: "square.stack.3d.up"
             case .appearance: "paintpalette"
             case .about: "info.circle"
@@ -81,7 +83,9 @@ struct ApplicationSettingsView: View {
     @State private var search = ""
     @State private var manualIdentifier = ""
     @State private var selectedPreset = NameplatePreset.selected
-    @State private var page: Page? = .applications
+    @State private var page: Page? = .general
+    @State private var launchAtLogin = LaunchAtLogin.isEnabled
+    @State private var launchAtLoginError: String?
 
     private var filteredApps: [InstalledApplication] {
         guard !search.isEmpty else { return installedApps }
@@ -100,9 +104,11 @@ struct ApplicationSettingsView: View {
             Divider()
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    Text((page ?? .applications).rawValue)
+                    Text((page ?? .general).rawValue)
                         .font(.system(size: 24, weight: .semibold))
-                    if page == .applications {
+                    if page == .general {
+                        generalPage
+                    } else if page == .applications {
                         applicationsPage
                     } else if page == .appearance {
                         appearancePage
@@ -117,6 +123,58 @@ struct ApplicationSettingsView: View {
             .background(Color(nsColor: .windowBackgroundColor))
         }
         .frame(minWidth: 720, minHeight: 520)
+        .alert("Could not change Launch at Login", isPresented: Binding(
+            get: { launchAtLoginError != nil },
+            set: { if !$0 { launchAtLoginError = nil } }
+        )) {
+            Button("OK", role: .cancel) { launchAtLoginError = nil }
+        } message: {
+            Text(launchAtLoginError ?? "")
+        }
+    }
+
+    private var generalPage: some View {
+        settingsCard {
+            VStack(alignment: .leading, spacing: 12) {
+                Toggle(isOn: Binding(
+                    get: { launchAtLogin },
+                    set: { updateLaunchAtLogin($0) }
+                )) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Launch at Login")
+                            .fontWeight(.medium)
+                        Text("Start Nameplate when you sign in to your Mac.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .disabled(!LaunchAtLogin.isPackagedApp)
+                if !LaunchAtLogin.isPackagedApp {
+                    Text("Available when Nameplate is opened from the built app bundle.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else if LaunchAtLogin.requiresApproval {
+                    HStack {
+                        Text("Allow Nameplate in macOS Login Items to finish setup.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Open Login Items") { LaunchAtLogin.openSystemSettings() }
+                    }
+                }
+            }
+        }
+        .onAppear { launchAtLogin = LaunchAtLogin.isEnabled }
+    }
+
+    private func updateLaunchAtLogin(_ enabled: Bool) {
+        do {
+            try LaunchAtLogin.setEnabled(enabled)
+            launchAtLogin = LaunchAtLogin.isEnabled
+        } catch {
+            launchAtLogin = LaunchAtLogin.isEnabled
+            launchAtLoginError = error.localizedDescription
+        }
     }
 
     private var sidebar: some View {
