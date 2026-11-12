@@ -41,7 +41,7 @@ release: test
 	mkdir -p "$(DMG_STAGE)"
 	ditto "$(APP)" "$(DMG_STAGE)/$(APP_NAME).app"
 	ln -s /Applications "$(DMG_STAGE)/Applications"
-	hdiutil create -volname "$(APP_NAME)" -srcfolder "$(DMG_STAGE)" -ov -format UDZO "$(DMG)"
+	diskutil image create from --volumeName "$(APP_NAME)" --format UDZO "$(DMG_STAGE)" "$(DMG)"
 	hdiutil verify "$(DMG)"
 	rm -rf "$(DMG_STAGE)"
 	@echo "Built $(ZIP) and $(DMG)"
