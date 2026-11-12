@@ -3,6 +3,7 @@ import AppKit
 @MainActor
 final class MissionControlTitleOverlay {
     private var panels: [Int: NSPanel] = [:]
+    private var titles: [Int: String] = [:]
 
     func show(thumbnails: [MissionControlThumbnail], preset: NameplatePreset) {
         guard !thumbnails.isEmpty else {
@@ -17,23 +18,27 @@ final class MissionControlTitleOverlay {
             currentIDs.insert(windowID)
 
             let frame = labelFrame(for: thumbnail, preset: preset)
-            if let panel = panels[windowID] {
+            if let panel = panels[windowID], titles[windowID] == thumbnail.title {
                 if panel.frame != frame {
                     panel.setFrame(frame, display: true)
                 }
             } else {
+                panels.removeValue(forKey: windowID)?.close()
                 panels[windowID] = makePanel(title: thumbnail.title, frame: frame, preset: preset)
+                titles[windowID] = thumbnail.title
             }
         }
 
         for windowID in Set(panels.keys).subtracting(currentIDs) {
             panels.removeValue(forKey: windowID)?.close()
+            titles.removeValue(forKey: windowID)
         }
     }
 
     func hide() {
         panels.values.forEach { $0.close() }
         panels.removeAll()
+        titles.removeAll()
     }
 
     private func labelFrame(for thumbnail: MissionControlThumbnail, preset: NameplatePreset) -> NSRect {

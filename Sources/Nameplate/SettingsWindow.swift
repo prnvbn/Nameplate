@@ -74,6 +74,10 @@ private struct ApplicationSettingsView: View {
     let onChange: () -> Void
     @State private var installedApps = InstalledApplications.scan()
     @State private var selectedIdentifiers = SelectedApplications.bundleIdentifiers
+    @State private var titleRulesByApp = WindowTitleProcessing.rulesByApp
+    @State private var sampleTitles: [String: String] = [:]
+    @State private var openWindowSamples: [String: String] = [:]
+    @State private var expandedTitleProcessing: Set<String> = []
     @State private var search = ""
     @State private var manualIdentifier = ""
     @State private var selectedPreset = NameplatePreset.selected
@@ -177,17 +181,44 @@ private struct ApplicationSettingsView: View {
                             .padding(.vertical, 12)
                     } else {
                         ForEach(selectedIdentifiers, id: \.self) { identifier in
-                            HStack {
-                                if let app = installedApps.first(where: { $0.bundleIdentifier == identifier }) {
-                                    applicationRow(app)
-                                } else {
-                                    Label(identifier, systemImage: "app")
+                            VStack(alignment: .leading, spacing: 10) {
+                                HStack {
+                                    if let app = installedApps.first(where: { $0.bundleIdentifier == identifier }) {
+                                        applicationRow(app)
+                                    } else {
+                                        Label(identifier, systemImage: "app")
+                                    }
+                                    Button { remove(identifier) } label: {
+                                        Image(systemName: "minus.circle.fill")
+                                    }
+                                    .buttonStyle(.borderless)
+                                    .help("Remove \(identifier)")
                                 }
-                                Button { remove(identifier) } label: {
-                                    Image(systemName: "minus.circle.fill")
+                                Button {
+                                    if expandedTitleProcessing.contains(identifier) {
+                                        expandedTitleProcessing.remove(identifier)
+                                    } else {
+                                        expandedTitleProcessing.insert(identifier)
+                                        refreshOpenWindowSample(for: identifier)
+                                    }
+                                } label: {
+                                    HStack(spacing: 8) {
+                                        Image(systemName: expandedTitleProcessing.contains(identifier) ? "chevron.down" : "chevron.right")
+                                            .font(.caption.weight(.semibold))
+                                            .frame(width: 14)
+                                        Text("Title processing")
+                                            .fontWeight(.medium)
+                                        Spacer()
+                                    }
+                                    .frame(maxWidth: .infinity, minHeight: 28)
+                                    .contentShape(Rectangle())
                                 }
-                                .buttonStyle(.borderless)
-                                .help("Remove \(identifier)")
+                                .buttonStyle(.plain)
+                                .accessibilityValue(expandedTitleProcessing.contains(identifier) ? "Expanded" : "Collapsed")
+                                if expandedTitleProcessing.contains(identifier) {
+                                    titleRuleEditor(for: identifier)
+                                        .padding(.top, 8)
+                                }
                             }
                             if identifier != selectedIdentifiers.last { Divider() }
                         }
@@ -195,6 +226,162 @@ private struct ApplicationSettingsView: View {
                 }
             }
         }
+    }
+
+    private func titleRuleEditor(for identifier: String) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            let rules = titleRulesByApp[identifier] ?? []
+            ForEach(Array(rules.enumerated()), id: \.element.id) { index, rule in
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Toggle("", isOn: ruleBinding(identifier, rule.id, \.isEnabled))
+                            .labelsHidden()
+                        Text("Rule \(index + 1)").fontWeight(.medium)
+                        Spacer()
+                        Button { moveRule(identifier, from: index, by: -1) } label: {
+                            Image(systemName: "arrow.up")
+                        }.disabled(index == 0)
+                        Button { moveRule(identifier, from: index, by: 1) } label: {
+                            Image(systemName: "arrow.down")
+                        }.disabled(index == rules.count - 1)
+                        Button(role: .destructive) { removeRule(identifier, id: rule.id) } label: {
+                            Image(systemName: "trash")
+                        }
+                    }
+                    HStack(spacing: 12) {
+                        Text("Action")
+                        Menu {
+                            ForEach(WindowTitleRule.Kind.allCases, id: \.self) { kind in
+                                Button {
+                                    updateRule(identifier, id: rule.id, \.kind, to: kind)
+                                } label: {
+                                    if rule.kind == kind {
+                                        Label(kind.rawValue, systemImage: "checkmark")
+                                    } else {
+                                        Text(kind.rawValue)
+                                    }
+                                }
+                            }
+                        } label: {
+                            HStack {
+                                Text(rule.kind.rawValue)
+                                Spacer()
+                                Image(systemName: "chevron.up.chevron.down")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.horizontal, 10)
+                            .frame(height: 28)
+                            .frame(maxWidth: .infinity)
+                            .contentShape(Rectangle())
+                        }
+                        .menuStyle(.borderlessButton)
+                        .background(Color(nsColor: .controlBackgroundColor),
+                                    in: RoundedRectangle(cornerRadius: 6))
+                        .overlay(RoundedRectangle(cornerRadius: 6)
+                            .stroke(Color.secondary.opacity(0.25), lineWidth: 1))
+                        .accessibilityLabel("Action: \(rule.kind.rawValue)")
+                    }
+                    TextField(rule.kind == .removeAfter ? "Separator, e.g.  — " : "Find", text: ruleBinding(identifier, rule.id, \.pattern))
+                        .textFieldStyle(.roundedBorder)
+                    if rule.kind == .removeAfter,
+                       let sample = sampleTitles[identifier],
+                       !sample.isEmpty,
+                       !sample.contains(rule.pattern),
+                       let separator = WindowTitleProcessing.separator(in: sample) {
+                        HStack(spacing: 6) {
+                            Text("This separator doesn’t match the sample title.")
+                                .foregroundStyle(.secondary)
+                            Button("Use “\(separator.trimmingCharacters(in: .whitespaces))”") {
+                                updateRule(identifier, id: rule.id, \.pattern, to: separator)
+                            }
+                            .buttonStyle(.link)
+                        }
+                        .font(.caption)
+                    }
+                    if rule.kind != .removeAfter {
+                        TextField("Replace with (empty removes it)", text: ruleBinding(identifier, rule.id, \.replacement))
+                            .textFieldStyle(.roundedBorder)
+                    }
+                    if let error = rule.validationError {
+                        Text(error).font(.caption).foregroundStyle(.red)
+                    }
+                }
+                .padding(12)
+                .background(Color(nsColor: .underPageBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
+            }
+            Button { addRule(identifier) } label: { Label("Add rule", systemImage: "plus") }
+            HStack {
+                Text("Sample window title").font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                Button("Refresh") { refreshOpenWindowSample(for: identifier) }
+                    .buttonStyle(.link)
+                    .font(.caption)
+            }
+            TextField("Try a window title", text: Binding(
+                get: { sampleTitles[identifier] ?? "" },
+                set: { sampleTitles[identifier] = $0 }
+            ))
+            .textFieldStyle(.roundedBorder)
+            if openWindowSamples[identifier] == nil {
+                Text("Open a window in this app, then refresh to use its title here.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            if let sample = sampleTitles[identifier], !sample.isEmpty {
+                Text("Result: \(WindowTitleProcessing.process(sample, using: rules))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+            }
+        }
+    }
+
+    private func refreshOpenWindowSample(for identifier: String) {
+        if let title = OpenWindowTitleReader.sampleTitle(for: identifier) {
+            openWindowSamples[identifier] = title
+            sampleTitles[identifier] = title
+        } else {
+            openWindowSamples.removeValue(forKey: identifier)
+        }
+    }
+
+    private func ruleBinding<Value>(_ identifier: String, _ id: UUID, _ keyPath: WritableKeyPath<WindowTitleRule, Value>) -> Binding<Value> {
+        Binding(
+            get: { titleRulesByApp[identifier]!.first(where: { $0.id == id })![keyPath: keyPath] },
+            set: { updateRule(identifier, id: id, keyPath, to: $0) }
+        )
+    }
+
+    private func addRule(_ identifier: String) {
+        var rule = WindowTitleRule()
+        if let sample = sampleTitles[identifier],
+           let separator = WindowTitleProcessing.separator(in: sample) {
+            rule.pattern = separator
+        }
+        titleRulesByApp[identifier, default: []].append(rule)
+        persistTitleRules()
+    }
+
+    private func updateRule<Value>(_ identifier: String, id: UUID, _ keyPath: WritableKeyPath<WindowTitleRule, Value>, to value: Value) {
+        guard let index = titleRulesByApp[identifier]?.firstIndex(where: { $0.id == id }) else { return }
+        titleRulesByApp[identifier]![index][keyPath: keyPath] = value
+        persistTitleRules()
+    }
+
+    private func removeRule(_ identifier: String, id: UUID) {
+        titleRulesByApp[identifier]?.removeAll { $0.id == id }
+        persistTitleRules()
+    }
+
+    private func moveRule(_ identifier: String, from index: Int, by offset: Int) {
+        titleRulesByApp[identifier]?.swapAt(index, index + offset)
+        persistTitleRules()
+    }
+
+    private func persistTitleRules() {
+        WindowTitleProcessing.rulesByApp = titleRulesByApp
+        onChange()
     }
 
     private var appearancePage: some View {

@@ -26,14 +26,18 @@ func missionControlThumbnails(for appBundleIdentifiers: [String]) -> [MissionCon
             visited += 1
 
             if let identifier = axString(element, kAXIdentifierAttribute as CFString),
-                appBundleIdentifiers.contains(where: { identifier.hasPrefix($0 + ".space.") }),
+                let targetBundleIdentifier = appBundleIdentifiers.first(where: { identifier.hasPrefix($0 + ".space.") }),
                 let windowID = axWindowID(element),
                 appWindowIDs.contains(windowID),
                 let title = axString(element, kAXTitleAttribute as CFString),
                 let frame = axFrame(element),
                 frame.width > 0, frame.height > 0
             {
-                thumbnails.append(MissionControlThumbnail(windowID: windowID, title: title, frame: frame))
+                thumbnails.append(MissionControlThumbnail(
+                    windowID: windowID,
+                    title: WindowTitleProcessing.displayTitle(title, for: targetBundleIdentifier),
+                    frame: frame
+                ))
             }
 
             if let children = axChildren(element) {

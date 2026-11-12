@@ -1,8 +1,9 @@
 import Testing
 @testable import Nameplate
 
-@Test func example() async throws {
-    // Write your test here and use APIs like `#expect(...)` to check expected conditions.
-    // Swift Testing Documentation
-    // https://developer.apple.com/documentation/testing
+@Test func removeAfterMatchesExactSeparator() {
+    let rule = WindowTitleRule()
+    #expect(rule.apply(to: "cardgames — SEEP_RULE_DIFFERENCES.md") == "cardgames — SEEP_RULE_DIFFERENCES.md")
+    #expect(rule.apply(to: "cardgames - SEEP_RULE_DIFFERENCES.md") == "cardgames")
+    #expect(WindowTitleProcessing.separator(in: "cardgames — SEEP_RULE_DIFFERENCES.md") == " — ")
 }
