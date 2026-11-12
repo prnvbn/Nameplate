@@ -56,7 +56,7 @@ final class SettingsWindow: NSWindowController {
 }
 
 @MainActor
-private struct ApplicationSettingsView: View {
+struct ApplicationSettingsView: View {
     private enum Page: String, CaseIterable {
         case applications = "Applications"
         case appearance = "Nameplate Style"

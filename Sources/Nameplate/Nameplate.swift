@@ -1,16 +1,20 @@
-import AppKit
+import SwiftUI
 
 @main
-struct Nameplate {
-    static func main() {
-        let app = NSApplication.shared
-        let delegate = AppDelegate()
+struct Nameplate: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
-        app.delegate = delegate
-        app.setActivationPolicy(.accessory)
+    var body: some Scene {
+        MenuBarExtra {
+            Button("Settings…") { delegate.openSettings() }
+            Divider()
+            Button("Quit Nameplate") { delegate.quitNameplate() }
+        } label: {
+            Text("NP")
+        }
 
-        withExtendedLifetime(delegate) {
-            app.run()
+        Settings {
+            ApplicationSettingsView(onChange: { delegate.settingsDidChange() })
         }
     }
 }

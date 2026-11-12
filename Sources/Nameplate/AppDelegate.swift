@@ -2,7 +2,6 @@ import AppKit
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private var statusItem: NSStatusItem?
     private let missionControlMonitor = MissionControlMonitor()
     private let titleOverlay = MissionControlTitleOverlay()
     private var overlayRefreshTimer: Timer?
@@ -12,35 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         _ notification: Notification
     ) {
         print("Nameplate launched")
-
-        let item = NSStatusBar.system.statusItem(
-            withLength: NSStatusItem.variableLength
-        )
-        item.button?.title = "NP"
-        statusItem = item
-
-        let menu = NSMenu()
-
-        let settingsItem = NSMenuItem(
-            title: "Settings...",
-            action: #selector(openSettings),
-            keyEquivalent: ","
-        )
-        settingsItem.target = self
-        menu.addItem(settingsItem)
-
-        menu.addItem(NSMenuItem.separator())
-
-        let quitItem = NSMenuItem(
-            title: "Quit Nameplate",
-            action: #selector(quitNameplate),
-            keyEquivalent: "q"
-        )
-
-        quitItem.target = self
-        menu.addItem(quitItem)
-
-        item.menu = menu
+        NSApp.setActivationPolicy(.accessory)
 
         startMissionControlMonitoring()
     }
@@ -76,21 +47,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         titleOverlay.show(thumbnails: thumbnails, preset: NameplatePreset.selected)
     }
 
-    @objc private func openSettings() {
+    func settingsDidChange() {
+        titleOverlay.hide()
+        refreshMissionControlTitles()
+    }
+
+    func openSettings() {
         if settingsWindow == nil {
             settingsWindow = SettingsWindow { [weak self] in
-                self?.titleOverlay.hide()
-                self?.refreshMissionControlTitles()
+                self?.settingsDidChange()
             }
         }
         settingsWindow?.present()
     }
 
-    @objc func quitNameplate() {
+    func quitNameplate() {
         overlayRefreshTimer?.invalidate()
         titleOverlay.hide()
         missionControlMonitor.stop()
         NSApp.terminate(nil)
     }
 }
-
