@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 
 private let selectedApplicationsDefaultsKey = "selectedApplicationBundleIdentifiers"
+private let allApplicationsDefaultsKey = "enableForAllApplications"
 
 private let appVersion: String = {
     if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
@@ -15,6 +16,16 @@ private let appVersion: String = {
 
 @MainActor
 enum SelectedApplications {
+    static var allApplicationsEnabled: Bool {
+        get { UserDefaults.standard.bool(forKey: allApplicationsDefaultsKey) }
+        set { UserDefaults.standard.set(newValue, forKey: allApplicationsDefaultsKey) }
+    }
+
+    static var activeBundleIdentifiers: [String] {
+        guard allApplicationsEnabled else { return bundleIdentifiers }
+        return Array(Set(NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier)))
+    }
+
     static var bundleIdentifiers: [String] {
         if let identifiers = UserDefaults.standard.stringArray(forKey: selectedApplicationsDefaultsKey) {
             return identifiers
@@ -76,6 +87,7 @@ struct ApplicationSettingsView: View {
     let onChange: () -> Void
     @State private var installedApps = InstalledApplications.scan()
     @State private var selectedIdentifiers = SelectedApplications.bundleIdentifiers
+    @State private var allApplicationsEnabled = SelectedApplications.allApplicationsEnabled
     @State private var titleRulesByApp = WindowTitleProcessing.rulesByApp
     @State private var sampleTitles: [String: String] = [:]
     @State private var openWindowSamples: [String: String] = [:]
@@ -193,11 +205,34 @@ struct ApplicationSettingsView: View {
 
     private var applicationsPage: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text("Choose the apps whose window titles appear in Mission Control.")
+            Text("Choose which apps show window titles in Mission Control.")
                 .foregroundStyle(.secondary)
+            settingsCard {
+                Toggle(isOn: Binding(
+                    get: { allApplicationsEnabled },
+                    set: {
+                        allApplicationsEnabled = $0
+                        SelectedApplications.allApplicationsEnabled = $0
+                        onChange()
+                    }
+                )) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Enable for all applications")
+                            .fontWeight(.medium)
+                        Text("Show nameplates for windows from every running application.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
             settingsCard {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Add applications").font(.headline)
+                    if allApplicationsEnabled {
+                        Text("Your selected applications are saved for when this option is off.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                     TextField("Search installed apps", text: $search)
                         .textFieldStyle(.roundedBorder)
                     List(filteredApps, id: \.bundleIdentifier) { app in
@@ -230,6 +265,7 @@ struct ApplicationSettingsView: View {
                     }
                 }
             }
+            .disabled(allApplicationsEnabled)
             settingsCard {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Selected applications").font(.headline)
@@ -283,6 +319,7 @@ struct ApplicationSettingsView: View {
                     }
                 }
             }
+            .disabled(allApplicationsEnabled)
         }
     }
 

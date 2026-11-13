@@ -24,7 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.refreshMissionControlTitles()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
                     guard let self, self.overlayRefreshTimer != nil else { return }
-                    inspectMissionControl(for: SelectedApplications.bundleIdentifiers)
+                    inspectMissionControl(for: SelectedApplications.activeBundleIdentifiers)
                 }
                 let timer = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
                     MainActor.assumeIsolated {
@@ -43,7 +43,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func refreshMissionControlTitles() {
-        let thumbnails = missionControlThumbnails(for: SelectedApplications.bundleIdentifiers)
+        let thumbnails = missionControlThumbnails(for: SelectedApplications.activeBundleIdentifiers)
         titleOverlay.show(thumbnails: thumbnails, preset: NameplatePreset.selected)
     }
 
