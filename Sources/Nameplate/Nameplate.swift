@@ -6,6 +6,10 @@ struct Nameplate: App {
 
     var body: some Scene {
         MenuBarExtra {
+            if !AccessibilityAccess.isGranted {
+                Button("Accessibility Access Required…") { delegate.openSettings() }
+                Divider()
+            }
             Button("Settings…") { delegate.openSettings() }
             Divider()
             Button("Quit Nameplate") { delegate.quitNameplate() }

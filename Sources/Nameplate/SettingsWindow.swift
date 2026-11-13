@@ -99,6 +99,7 @@ struct ApplicationSettingsView: View {
     @State private var selectedPreset = NameplatePreset.selected
     @State private var page: Page? = .general
     @State private var launchAtLogin = LaunchAtLogin.isEnabled
+    @State private var accessibilityGranted = AccessibilityAccess.isGranted
     @State private var launchAtLoginError: String?
 
     private var filteredIdentifiers: [String] {
@@ -159,39 +160,67 @@ struct ApplicationSettingsView: View {
     }
 
     private var generalPage: some View {
-        settingsCard {
-            VStack(alignment: .leading, spacing: 12) {
-                Toggle(
-                    isOn: Binding(
-                        get: { launchAtLogin },
-                        set: { updateLaunchAtLogin($0) }
-                    )
-                ) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Launch at Login")
-                            .fontWeight(.medium)
-                        Text("Start Nameplate when you sign in to your Mac.")
+        VStack(alignment: .leading, spacing: 20) {
+            settingsCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("Accessibility Access").fontWeight(.medium)
+                        Spacer()
+                        Label(accessibilityGranted ? "Granted" : "Required",
+                              systemImage: accessibilityGranted ? "checkmark.circle.fill" : "exclamationmark.circle")
+                            .foregroundStyle(accessibilityGranted ? Color.green : Color.orange)
                             .font(.caption)
-                            .foregroundStyle(.secondary)
                     }
-                }
-                .disabled(!LaunchAtLogin.isPackagedApp)
-                if !LaunchAtLogin.isPackagedApp {
-                    Text("Available when Nameplate is opened from the built app bundle.")
+                    Text(accessibilityGranted
+                         ? "Nameplate can read window titles in Mission Control."
+                         : "Allow Nameplate in Privacy & Security → Accessibility to show window titles.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                } else if LaunchAtLogin.requiresApproval {
-                    HStack {
-                        Text("Allow Nameplate in macOS Login Items to finish setup.")
+                    if !accessibilityGranted {
+                        Button("Open Accessibility Settings") { AccessibilityAccess.request() }
+                    }
+                }
+            }
+            settingsCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    Toggle(
+                        isOn: Binding(
+                            get: { launchAtLogin },
+                            set: { updateLaunchAtLogin($0) }
+                        )
+                    ) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Launch at Login")
+                                .fontWeight(.medium)
+                            Text("Start Nameplate when you sign in to your Mac.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .disabled(!LaunchAtLogin.isPackagedApp)
+                    if !LaunchAtLogin.isPackagedApp {
+                        Text("Available when Nameplate is opened from the built app bundle.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        Spacer()
-                        Button("Open Login Items") { LaunchAtLogin.openSystemSettings() }
+                    } else if LaunchAtLogin.requiresApproval {
+                        HStack {
+                            Text("Allow Nameplate in macOS Login Items to finish setup.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Button("Open Login Items") { LaunchAtLogin.openSystemSettings() }
+                        }
                     }
                 }
             }
         }
-        .onAppear { launchAtLogin = LaunchAtLogin.isEnabled }
+        .onAppear {
+            launchAtLogin = LaunchAtLogin.isEnabled
+            accessibilityGranted = AccessibilityAccess.isGranted
+        }
+        .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
+            accessibilityGranted = AccessibilityAccess.isGranted
+        }
     }
 
     private func updateLaunchAtLogin(_ enabled: Bool) {
