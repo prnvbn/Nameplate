@@ -16,6 +16,7 @@ test:
 
 release: test
 	@test -n "$(VERSION)" || (echo "VERSION is required" >&2; exit 1)
+	@command -v create-dmg >/dev/null || (echo "Install create-dmg with: brew install create-dmg" >&2; exit 1)
 	swift build -c release --product $(APP_NAME)
 	rm -rf "$(APP)" "$(ZIP)" "$(DMG)" "$(DMG_STAGE)"
 	mkdir -p "$(APP)/Contents/MacOS" "$(APP)/Contents/Resources"
@@ -40,8 +41,14 @@ release: test
 	cd "$(DIST_DIR)" && ditto -c -k --sequesterRsrc --keepParent "$(APP_NAME).app" "$(notdir $(ZIP))"
 	mkdir -p "$(DMG_STAGE)"
 	ditto "$(APP)" "$(DMG_STAGE)/$(APP_NAME).app"
-	ln -s /Applications "$(DMG_STAGE)/Applications"
-	diskutil image create from --volumeName "$(APP_NAME)" --format UDZO "$(DMG_STAGE)" "$(DMG)"
+	create-dmg \
+		--volname "$(APP_NAME)" \
+		--window-size 600 360 \
+		--icon-size 128 \
+		--icon "$(APP_NAME).app" 150 175 \
+		--hide-extension "$(APP_NAME).app" \
+		--app-drop-link 450 175 \
+		"$(DMG)" "$(DMG_STAGE)"
 	hdiutil verify "$(DMG)"
 	rm -rf "$(DMG_STAGE)"
 	@echo "Built $(ZIP) and $(DMG)"
