@@ -535,7 +535,7 @@ struct ApplicationSettingsView: View {
                             onChange()
                         } label: {
                             HStack(spacing: 16) {
-                                presetPlate("Window title", preset: preset, compact: true)
+                                preset.previewPlate("Window title", compact: true)
                                     .frame(width: 150, alignment: .leading)
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text(preset.name).fontWeight(.medium)
@@ -610,53 +610,12 @@ struct ApplicationSettingsView: View {
                 }
                 .padding(16)
             }
-            presetPlate("Example window", preset: selectedPreset)
+            selectedPreset.previewPlate("Example window")
         }
         .frame(height: 190)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.secondary.opacity(0.2), lineWidth: 1))
-    }
-
-    @ViewBuilder
-    private func presetPlate(_ title: String, preset: NameplatePreset, compact: Bool = false)
-        -> some View
-    {
-        switch preset {
-        case .native:
-            Text(title)
-                .font(Font(preset.font))
-                .foregroundStyle(Color(nsColor: preset.textColor))
-                .lineLimit(1)
-                .padding(.horizontal, compact ? 12 : 18)
-                .frame(height: compact ? 32 : 36)
-                .background(Color(nsColor: preset.backgroundColor),
-                            in: RoundedRectangle(cornerRadius: preset.cornerRadius))
-                .overlay(RoundedRectangle(cornerRadius: preset.cornerRadius)
-                    .stroke(Color.white.opacity(0.14), lineWidth: 0.5))
-                .shadow(color: .black.opacity(0.22), radius: 5, y: 2)
-        case .licensePlate:
-            Text(preset.displayText(title))
-                .font(
-                    Font(compact ? .monospacedSystemFont(ofSize: 12, weight: .bold) : preset.font)
-                )
-                .foregroundStyle(Color(nsColor: preset.textColor))
-                .lineLimit(1)
-                .padding(.horizontal, compact ? 8 : 12)
-                .frame(height: compact ? 25 : 34)
-                .background(
-                    Color(red: 0.94, green: 0.93, blue: 0.87),
-                    in: RoundedRectangle(cornerRadius: 4)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 4)
-                        .stroke(Color(white: 0.25), lineWidth: 1.5)
-                )
-                .padding(3)
-                .background(
-                    Color(nsColor: preset.backgroundColor),
-                    in: RoundedRectangle(cornerRadius: preset.cornerRadius))
-        }
     }
 
     private func settingsCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
