@@ -3,6 +3,7 @@ import ApplicationServices
 
 struct MissionControlThumbnail {
     let windowID: Int
+    let bundleIdentifier: String
     let title: String
     let frame: CGRect
 }
@@ -39,6 +40,7 @@ func missionControlThumbnails(for appBundleIdentifiers: [String]) -> [MissionCon
             {
                 thumbnails.append(MissionControlThumbnail(
                     windowID: windowID,
+                    bundleIdentifier: targetBundleIdentifier,
                     title: WindowTitleProcessing.displayTitle(originalTitle.text ?? title, for: targetBundleIdentifier),
                     frame: frame
                 ))

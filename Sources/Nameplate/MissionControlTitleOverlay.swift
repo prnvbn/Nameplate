@@ -24,7 +24,9 @@ final class MissionControlTitleOverlay {
                 }
             } else {
                 panels.removeValue(forKey: windowID)?.close()
-                panels[windowID] = preset.makePanel(title: thumbnail.title, frame: frame)
+                panels[windowID] = preset.makePanel(
+                    title: thumbnail.title, bundleIdentifier: thumbnail.bundleIdentifier,
+                    frame: frame)
                 titles[windowID] = thumbnail.title
             }
         }
