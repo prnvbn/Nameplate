@@ -3,7 +3,9 @@ import Testing
 @testable import Nameplate
 
 @Test func removeAfterMatchesExactSeparator() {
-    let rule = WindowTitleRule()
+    var rule = WindowTitleRule()
+    #expect(rule.pattern.isEmpty)
+    rule.pattern = " - "
     #expect(
         rule.apply(to: "cardgames — SEEP_RULE_DIFFERENCES.md")
             == "cardgames — SEEP_RULE_DIFFERENCES.md")
