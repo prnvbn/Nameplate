@@ -5,49 +5,49 @@ private let nameplatePresetDefaultsKey = "nameplatePreset"
 
 @MainActor
 enum NameplatePreset: String, CaseIterable, Identifiable {
-    case native
+    case basic
     case licensePlate
 
     var id: String { rawValue }
 
     var name: String {
         switch self {
-        case .native: "Native"
+        case .basic: "Basic"
         case .licensePlate: "Number Plate"
         }
     }
 
     var description: String {
         switch self {
-        case .native: "Compact dark label with macOS system type"
+        case .basic: "Compact dark label with macOS system type"
         case .licensePlate: "Ivory face, bold lettering, and a dark border"
         }
     }
 
     var backgroundColor: NSColor {
         switch self {
-        case .native: NSColor(calibratedWhite: 0.12, alpha: 0.82)
+        case .basic: NSColor(calibratedWhite: 0.12, alpha: 0.82)
         case .licensePlate: NSColor(calibratedWhite: 0.08, alpha: 1)
         }
     }
 
     var textColor: NSColor {
         switch self {
-        case .native: NSColor(calibratedWhite: 1, alpha: 0.96)
+        case .basic: NSColor(calibratedWhite: 1, alpha: 0.96)
         case .licensePlate: NSColor(calibratedWhite: 0.08, alpha: 1)
         }
     }
 
     var font: NSFont {
         switch self {
-        case .native: .systemFont(ofSize: 15, weight: .semibold)
+        case .basic: .systemFont(ofSize: 15, weight: .semibold)
         case .licensePlate: .monospacedSystemFont(ofSize: 18, weight: .bold)
         }
     }
 
     var cornerRadius: CGFloat {
         switch self {
-        case .native: 18
+        case .basic: 18
         case .licensePlate: 7
         }
     }
@@ -60,7 +60,7 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
         get {
             NameplatePreset(
                 rawValue: UserDefaults.standard.string(forKey: nameplatePresetDefaultsKey) ?? "")
-                ?? .native
+                ?? .basic
         }
         set { UserDefaults.standard.set(newValue.rawValue, forKey: nameplatePresetDefaultsKey) }
     }
@@ -72,7 +72,7 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
         let width: CGFloat
         let height: CGFloat
         switch preset {
-        case .native:
+        case .basic:
             width = ceil(textWidth) + 44
             height = 36
         case .licensePlate:
@@ -101,7 +101,7 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
         let background = NSView(frame: NSRect(origin: .zero, size: frame.size))
         background.wantsLayer = true
         switch preset {
-        case .native:
+        case .basic:
             background.layer?.backgroundColor = preset.backgroundColor.cgColor
             background.layer?.borderColor = NSColor(calibratedWhite: 1, alpha: 0.14).cgColor
             background.layer?.borderWidth = 0.5
@@ -126,7 +126,7 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
         panel.contentView?.addSubview(background)
 
         switch preset {
-        case .native:
+        case .basic:
             let text = CATextLayer()
             text.string = NSAttributedString(
                 string: preset.displayText(title),
@@ -169,7 +169,7 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
     {
         let preset = self
         switch preset {
-        case .native:
+        case .basic:
             Text(title)
                 .font(Font(preset.font))
                 .foregroundStyle(Color(nsColor: preset.textColor))
