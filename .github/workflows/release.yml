@@ -31,6 +31,8 @@ jobs:
           echo "value=$version" >> "$GITHUB_OUTPUT"
           echo "tag=v$version" >> "$GITHUB_OUTPUT"
       - name: Build app bundle
+        run: brew install create-dmg
+      - name: Build release artifacts
         run: make release
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -39,30 +41,39 @@ jobs:
           path: |
             dist/Nameplate-${{ steps.version.outputs.value }}-macos-arm64.zip
             dist/Nameplate-${{ steps.version.outputs.value }}-macos-arm64.dmg
-      - name: Create tag and GitHub prerelease
+      - name: Create tag
+        uses: actions/github-script@v7
         env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.version.outputs.value }}
           TAG: ${{ steps.version.outputs.tag }}
-        run: |
-          existing_sha=$(git ls-remote origin "refs/tags/$TAG" | awk '{print $1}')
-          if [[ -n "$existing_sha" && "$existing_sha" != "$GITHUB_SHA" ]]; then
-            echo "$TAG already points to another commit" >&2
-            exit 1
-          fi
-          if [[ -z "$existing_sha" ]]; then
-            gh api "repos/$GITHUB_REPOSITORY/git/refs" \
-              -f "ref=refs/tags/$TAG" -f "sha=$GITHUB_SHA"
-          fi
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" \
-              "dist/Nameplate-${VERSION}-macos-arm64.zip" \
-              "dist/Nameplate-${VERSION}-macos-arm64.dmg" --clobber
-          else
-            gh release create "$TAG" \
-              "dist/Nameplate-${VERSION}-macos-arm64.zip" \
-              "dist/Nameplate-${VERSION}-macos-arm64.dmg" \
-              --title "Nameplate ${VERSION}" \
-              --notes-file .github/release-notes.md \
-              --prerelease
-          fi
+        with:
+          script: |
+            const ref = `tags/${process.env.TAG}`;
+            try {
+              const existing = await github.rest.git.getRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref,
+              });
+              if (existing.data.object.sha !== context.sha) {
+                throw new Error(`${process.env.TAG} already points to another commit`);
+              }
+            } catch (error) {
+              if (error.status !== 404) throw error;
+              await github.rest.git.createRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `refs/${ref}`,
+                sha: context.sha,
+              });
+            }
+      - name: Create release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ steps.version.outputs.tag }}
+          name: Nameplate ${{ steps.version.outputs.value }}
+          artifacts: dist/Nameplate-${{ steps.version.outputs.value }}-macos-arm64.zip,dist/Nameplate-${{ steps.version.outputs.value }}-macos-arm64.dmg
+          artifactErrorsFailBuild: true
+          prerelease: true
+          generateReleaseNotes: true
+          allowUpdates: true
+          replacesArtifacts: true
