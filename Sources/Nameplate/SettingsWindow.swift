@@ -27,7 +27,9 @@ enum SelectedApplications {
     }
 
     static var bundleIdentifiers: [String] {
-        if let identifiers = UserDefaults.standard.stringArray(forKey: selectedApplicationsDefaultsKey) {
+        if let identifiers = UserDefaults.standard.stringArray(
+            forKey: selectedApplicationsDefaultsKey)
+        {
             return identifiers
         }
         if let previousIdentifier = UserDefaults.standard.string(forKey: "targetBundleIdentifier") {
@@ -99,11 +101,19 @@ struct ApplicationSettingsView: View {
     @State private var launchAtLogin = LaunchAtLogin.isEnabled
     @State private var launchAtLoginError: String?
 
-    private var filteredApps: [InstalledApplication] {
-        guard !search.isEmpty else { return installedApps }
-        return installedApps.filter {
-            $0.name.localizedCaseInsensitiveContains(search)
-                || $0.bundleIdentifier.localizedCaseInsensitiveContains(search)
+    private var filteredIdentifiers: [String] {
+        let identifiers = Set(installedApps.map(\.bundleIdentifier))
+            .union(selectedIdentifiers)
+            .union(titleRulesByApp.keys)
+        return identifiers.filter { identifier in
+            guard !search.isEmpty else { return true }
+            let name = installedApps.first { $0.bundleIdentifier == identifier }?.name ?? ""
+            return name.localizedCaseInsensitiveContains(search)
+                || identifier.localizedCaseInsensitiveContains(search)
+        }.sorted { first, second in
+            let firstName = installedApps.first { $0.bundleIdentifier == first }?.name ?? first
+            let secondName = installedApps.first { $0.bundleIdentifier == second }?.name ?? second
+            return firstName.localizedStandardCompare(secondName) == .orderedAscending
         }
     }
 
@@ -135,10 +145,13 @@ struct ApplicationSettingsView: View {
             .background(Color(nsColor: .windowBackgroundColor))
         }
         .frame(minWidth: 720, minHeight: 520)
-        .alert("Could not change Launch at Login", isPresented: Binding(
-            get: { launchAtLoginError != nil },
-            set: { if !$0 { launchAtLoginError = nil } }
-        )) {
+        .alert(
+            "Could not change Launch at Login",
+            isPresented: Binding(
+                get: { launchAtLoginError != nil },
+                set: { if !$0 { launchAtLoginError = nil } }
+            )
+        ) {
             Button("OK", role: .cancel) { launchAtLoginError = nil }
         } message: {
             Text(launchAtLoginError ?? "")
@@ -148,10 +161,12 @@ struct ApplicationSettingsView: View {
     private var generalPage: some View {
         settingsCard {
             VStack(alignment: .leading, spacing: 12) {
-                Toggle(isOn: Binding(
-                    get: { launchAtLogin },
-                    set: { updateLaunchAtLogin($0) }
-                )) {
+                Toggle(
+                    isOn: Binding(
+                        get: { launchAtLogin },
+                        set: { updateLaunchAtLogin($0) }
+                    )
+                ) {
                     VStack(alignment: .leading, spacing: 3) {
                         Text("Launch at Login")
                             .fontWeight(.medium)
@@ -208,14 +223,16 @@ struct ApplicationSettingsView: View {
             Text("Choose which apps show window titles in Mission Control.")
                 .foregroundStyle(.secondary)
             settingsCard {
-                Toggle(isOn: Binding(
-                    get: { allApplicationsEnabled },
-                    set: {
-                        allApplicationsEnabled = $0
-                        SelectedApplications.allApplicationsEnabled = $0
-                        onChange()
-                    }
-                )) {
+                Toggle(
+                    isOn: Binding(
+                        get: { allApplicationsEnabled },
+                        set: {
+                            allApplicationsEnabled = $0
+                            SelectedApplications.allApplicationsEnabled = $0
+                            onChange()
+                        }
+                    )
+                ) {
                     VStack(alignment: .leading, spacing: 3) {
                         Text("Enable for all applications")
                             .fontWeight(.medium)
@@ -227,67 +244,44 @@ struct ApplicationSettingsView: View {
             }
             settingsCard {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Add applications").font(.headline)
-                    if allApplicationsEnabled {
-                        Text("Your selected applications are saved for when this option is off.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                    Text("Applications").font(.headline)
+                    Text(
+                        allApplicationsEnabled
+                            ? "All running apps show nameplates. Keep selections and title rules here for individual apps."
+                            : "Select apps for nameplates and edit their title rules below."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                     TextField("Search installed apps", text: $search)
                         .textFieldStyle(.roundedBorder)
-                    List(filteredApps, id: \.bundleIdentifier) { app in
-                        let isSelected = selectedIdentifiers.contains(app.bundleIdentifier)
-                        Button { toggle(app.bundleIdentifier) } label: {
+                    List(filteredIdentifiers, id: \.self) { identifier in
+                        VStack(alignment: .leading, spacing: 8) {
                             HStack {
-                                applicationRow(app)
-                                if isSelected {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundStyle(Color.accentColor)
-                                        .accessibilityLabel("Selected")
-                                }
-                            }
-                        }
-                        .buttonStyle(.plain)
-                        .listRowBackground(isSelected ? Color.accentColor.opacity(0.14) : Color.clear)
-                    }
-                    .frame(height: 210)
-                    .overlay {
-                        if filteredApps.isEmpty {
-                            Text("No matching applications").foregroundStyle(.secondary)
-                        }
-                    }
-                    HStack {
-                        TextField("Or enter a bundle identifier", text: $manualIdentifier)
-                            .textFieldStyle(.roundedBorder)
-                            .onSubmit { addManualIdentifier() }
-                        Button("Add App") { addManualIdentifier() }
-                            .disabled(manualIdentifier.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    }
-                }
-            }
-            .disabled(allApplicationsEnabled)
-            settingsCard {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Selected applications").font(.headline)
-                    if selectedIdentifiers.isEmpty {
-                        Text("No applications selected")
-                            .foregroundStyle(.secondary)
-                            .padding(.vertical, 12)
-                    } else {
-                        ForEach(selectedIdentifiers, id: \.self) { identifier in
-                            VStack(alignment: .leading, spacing: 10) {
-                                HStack {
-                                    if let app = installedApps.first(where: { $0.bundleIdentifier == identifier }) {
-                                        applicationRow(app)
-                                    } else {
-                                        Label(identifier, systemImage: "app")
+                                Button {
+                                    toggle(identifier)
+                                } label: {
+                                    HStack(spacing: 10) {
+                                        Image(
+                                            systemName: selectedIdentifiers.contains(identifier)
+                                                ? "checkmark.circle.fill" : "circle"
+                                        )
+                                        .foregroundStyle(
+                                            selectedIdentifiers.contains(identifier)
+                                                ? Color.accentColor : Color.secondary
+                                        )
+                                        .accessibilityLabel(
+                                            selectedIdentifiers.contains(identifier)
+                                                ? "Selected" : "Not selected")
+                                        if let app = installedApps.first(where: {
+                                            $0.bundleIdentifier == identifier
+                                        }) {
+                                            applicationRow(app)
+                                        } else {
+                                            Label(identifier, systemImage: "app")
+                                        }
                                     }
-                                    Button { remove(identifier) } label: {
-                                        Image(systemName: "minus.circle.fill")
-                                    }
-                                    .buttonStyle(.borderless)
-                                    .help("Remove \(identifier)")
                                 }
+                                .buttonStyle(.plain)
                                 Button {
                                     if expandedTitleProcessing.contains(identifier) {
                                         expandedTitleProcessing.remove(identifier)
@@ -296,30 +290,42 @@ struct ApplicationSettingsView: View {
                                         refreshOpenWindowSample(for: identifier)
                                     }
                                 } label: {
-                                    HStack(spacing: 8) {
-                                        Image(systemName: expandedTitleProcessing.contains(identifier) ? "chevron.down" : "chevron.right")
-                                            .font(.caption.weight(.semibold))
-                                            .frame(width: 14)
-                                        Text("Title processing")
-                                            .fontWeight(.medium)
-                                        Spacer()
-                                    }
-                                    .frame(maxWidth: .infinity, minHeight: 28)
-                                    .contentShape(Rectangle())
+                                    Text(
+                                        expandedTitleProcessing.contains(identifier)
+                                            ? "Hide rules" : "Edit rules"
+                                    )
+                                    .font(.caption)
                                 }
-                                .buttonStyle(.plain)
-                                .accessibilityValue(expandedTitleProcessing.contains(identifier) ? "Expanded" : "Collapsed")
-                                if expandedTitleProcessing.contains(identifier) {
-                                    titleRuleEditor(for: identifier)
-                                        .padding(.top, 8)
-                                }
+                                .buttonStyle(.borderless)
+                                .help("Title processing for \(identifier)")
+                                .accessibilityLabel("Title processing for \(identifier)")
                             }
-                            if identifier != selectedIdentifiers.last { Divider() }
+                            if expandedTitleProcessing.contains(identifier) {
+                                titleRuleEditor(for: identifier)
+                                    .padding(.vertical, 8)
+                            }
                         }
+                        .listRowBackground(
+                            selectedIdentifiers.contains(identifier)
+                                ? Color.accentColor.opacity(0.14) : Color.clear)
+                    }
+                    .frame(height: 300)
+                    .overlay {
+                        if filteredIdentifiers.isEmpty {
+                            Text("No matching applications").foregroundStyle(.secondary)
+                        }
+                    }
+                    HStack {
+                        TextField("Or enter a bundle identifier", text: $manualIdentifier)
+                            .textFieldStyle(.roundedBorder)
+                            .onSubmit { addManualIdentifier() }
+                        Button("Add App") { addManualIdentifier() }
+                            .disabled(
+                                manualIdentifier.trimmingCharacters(in: .whitespacesAndNewlines)
+                                    .isEmpty)
                     }
                 }
             }
-            .disabled(allApplicationsEnabled)
         }
     }
 
@@ -333,13 +339,19 @@ struct ApplicationSettingsView: View {
                             .labelsHidden()
                         Text("Rule \(index + 1)").fontWeight(.medium)
                         Spacer()
-                        Button { moveRule(identifier, from: index, by: -1) } label: {
+                        Button {
+                            moveRule(identifier, from: index, by: -1)
+                        } label: {
                             Image(systemName: "arrow.up")
                         }.disabled(index == 0)
-                        Button { moveRule(identifier, from: index, by: 1) } label: {
+                        Button {
+                            moveRule(identifier, from: index, by: 1)
+                        } label: {
                             Image(systemName: "arrow.down")
                         }.disabled(index == rules.count - 1)
-                        Button(role: .destructive) { removeRule(identifier, id: rule.id) } label: {
+                        Button(role: .destructive) {
+                            removeRule(identifier, id: rule.id)
+                        } label: {
                             Image(systemName: "trash")
                         }
                     }
@@ -371,19 +383,27 @@ struct ApplicationSettingsView: View {
                             .contentShape(Rectangle())
                         }
                         .menuStyle(.borderlessButton)
-                        .background(Color(nsColor: .controlBackgroundColor),
-                                    in: RoundedRectangle(cornerRadius: 6))
-                        .overlay(RoundedRectangle(cornerRadius: 6)
-                            .stroke(Color.secondary.opacity(0.25), lineWidth: 1))
+                        .background(
+                            Color(nsColor: .controlBackgroundColor),
+                            in: RoundedRectangle(cornerRadius: 6)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .stroke(Color.secondary.opacity(0.25), lineWidth: 1)
+                        )
                         .accessibilityLabel("Action: \(rule.kind.rawValue)")
                     }
-                    TextField(rule.kind == .removeAfter ? "Separator, e.g.  — " : "Find", text: ruleBinding(identifier, rule.id, \.pattern))
-                        .textFieldStyle(.roundedBorder)
+                    TextField(
+                        rule.kind == .removeAfter ? "Separator, e.g.  — " : "Find",
+                        text: ruleBinding(identifier, rule.id, \.pattern)
+                    )
+                    .textFieldStyle(.roundedBorder)
                     if rule.kind == .removeAfter,
-                       let sample = sampleTitles[identifier],
-                       !sample.isEmpty,
-                       !sample.contains(rule.pattern),
-                       let separator = WindowTitleProcessing.separator(in: sample) {
+                        let sample = sampleTitles[identifier],
+                        !sample.isEmpty,
+                        !sample.contains(rule.pattern),
+                        let separator = WindowTitleProcessing.separator(in: sample)
+                    {
                         HStack(spacing: 6) {
                             Text("This separator doesn’t match the sample title.")
                                 .foregroundStyle(.secondary)
@@ -395,17 +415,26 @@ struct ApplicationSettingsView: View {
                         .font(.caption)
                     }
                     if rule.kind != .removeAfter {
-                        TextField("Replace with (empty removes it)", text: ruleBinding(identifier, rule.id, \.replacement))
-                            .textFieldStyle(.roundedBorder)
+                        TextField(
+                            "Replace with (empty removes it)",
+                            text: ruleBinding(identifier, rule.id, \.replacement)
+                        )
+                        .textFieldStyle(.roundedBorder)
                     }
                     if let error = rule.validationError {
                         Text(error).font(.caption).foregroundStyle(.red)
                     }
                 }
                 .padding(12)
-                .background(Color(nsColor: .underPageBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
+                .background(
+                    Color(nsColor: .underPageBackgroundColor), in: RoundedRectangle(cornerRadius: 8)
+                )
             }
-            Button { addRule(identifier) } label: { Label("Add rule", systemImage: "plus") }
+            Button {
+                addRule(identifier)
+            } label: {
+                Label("Add rule", systemImage: "plus")
+            }
             HStack {
                 Text("Sample window title").font(.caption).foregroundStyle(.secondary)
                 Spacer()
@@ -413,10 +442,13 @@ struct ApplicationSettingsView: View {
                     .buttonStyle(.link)
                     .font(.caption)
             }
-            TextField("Try a window title", text: Binding(
-                get: { sampleTitles[identifier] ?? "" },
-                set: { sampleTitles[identifier] = $0 }
-            ))
+            TextField(
+                "Try a window title",
+                text: Binding(
+                    get: { sampleTitles[identifier] ?? "" },
+                    set: { sampleTitles[identifier] = $0 }
+                )
+            )
             .textFieldStyle(.roundedBorder)
             if openWindowSamples[identifier] == nil {
                 Text("Open a window in this app, then refresh to use its title here.")
@@ -441,7 +473,9 @@ struct ApplicationSettingsView: View {
         }
     }
 
-    private func ruleBinding<Value>(_ identifier: String, _ id: UUID, _ keyPath: WritableKeyPath<WindowTitleRule, Value>) -> Binding<Value> {
+    private func ruleBinding<Value>(
+        _ identifier: String, _ id: UUID, _ keyPath: WritableKeyPath<WindowTitleRule, Value>
+    ) -> Binding<Value> {
         Binding(
             get: { titleRulesByApp[identifier]!.first(where: { $0.id == id })![keyPath: keyPath] },
             set: { updateRule(identifier, id: id, keyPath, to: $0) }
@@ -449,17 +483,17 @@ struct ApplicationSettingsView: View {
     }
 
     private func addRule(_ identifier: String) {
-        var rule = WindowTitleRule()
-        if let sample = sampleTitles[identifier],
-           let separator = WindowTitleProcessing.separator(in: sample) {
-            rule.pattern = separator
-        }
-        titleRulesByApp[identifier, default: []].append(rule)
+        titleRulesByApp[identifier, default: []].append(WindowTitleRule())
         persistTitleRules()
     }
 
-    private func updateRule<Value>(_ identifier: String, id: UUID, _ keyPath: WritableKeyPath<WindowTitleRule, Value>, to value: Value) {
-        guard let index = titleRulesByApp[identifier]?.firstIndex(where: { $0.id == id }) else { return }
+    private func updateRule<Value>(
+        _ identifier: String, id: UUID, _ keyPath: WritableKeyPath<WindowTitleRule, Value>,
+        to value: Value
+    ) {
+        guard let index = titleRulesByApp[identifier]?.firstIndex(where: { $0.id == id }) else {
+            return
+        }
         titleRulesByApp[identifier]![index][keyPath: keyPath] = value
         persistTitleRules()
     }
@@ -505,7 +539,8 @@ struct ApplicationSettingsView: View {
                                     .frame(width: 150, alignment: .leading)
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text(preset.name).fontWeight(.medium)
-                                    Text(preset.description).font(.caption).foregroundStyle(.secondary)
+                                    Text(preset.description).font(.caption).foregroundStyle(
+                                        .secondary)
                                 }
                                 Spacer()
                                 if selectedPreset == preset {
@@ -578,34 +613,45 @@ struct ApplicationSettingsView: View {
             presetPlate("Example window", preset: selectedPreset)
         }
         .frame(height: 190)
-        .overlay(RoundedRectangle(cornerRadius: 12)
-            .stroke(Color.secondary.opacity(0.2), lineWidth: 1))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.secondary.opacity(0.2), lineWidth: 1))
     }
 
     @ViewBuilder
-    private func presetPlate(_ title: String, preset: NameplatePreset, compact: Bool = false) -> some View {
+    private func presetPlate(_ title: String, preset: NameplatePreset, compact: Bool = false)
+        -> some View
+    {
         if preset == .licensePlate {
             Text(preset.displayText(title))
-                .font(Font(compact ? .monospacedSystemFont(ofSize: 12, weight: .bold) : preset.font))
+                .font(
+                    Font(compact ? .monospacedSystemFont(ofSize: 12, weight: .bold) : preset.font)
+                )
                 .foregroundStyle(Color(nsColor: preset.textColor))
                 .lineLimit(1)
                 .padding(.horizontal, compact ? 8 : 12)
                 .frame(height: compact ? 25 : 34)
-            .background(Color(red: 0.94, green: 0.93, blue: 0.87),
-                        in: RoundedRectangle(cornerRadius: 4))
-            .overlay(RoundedRectangle(cornerRadius: 4)
-                .stroke(Color(white: 0.25), lineWidth: 1.5))
-            .padding(3)
-            .background(Color(nsColor: preset.backgroundColor),
-                        in: RoundedRectangle(cornerRadius: preset.cornerRadius))
+                .background(
+                    Color(red: 0.94, green: 0.93, blue: 0.87),
+                    in: RoundedRectangle(cornerRadius: 4)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(Color(white: 0.25), lineWidth: 1.5)
+                )
+                .padding(3)
+                .background(
+                    Color(nsColor: preset.backgroundColor),
+                    in: RoundedRectangle(cornerRadius: preset.cornerRadius))
         } else {
             Text(title)
                 .font(Font(preset.font))
                 .foregroundStyle(Color(nsColor: preset.textColor))
                 .padding(.horizontal, compact ? 10 : 18)
                 .frame(height: compact ? 30 : 42)
-                .background(Color(nsColor: preset.backgroundColor),
-                            in: RoundedRectangle(cornerRadius: preset.cornerRadius))
+                .background(
+                    Color(nsColor: preset.backgroundColor),
+                    in: RoundedRectangle(cornerRadius: preset.cornerRadius))
         }
     }
 
@@ -613,8 +659,9 @@ struct ApplicationSettingsView: View {
         content()
             .padding(18)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(nsColor: .controlBackgroundColor),
-                        in: RoundedRectangle(cornerRadius: 14))
+            .background(
+                Color(nsColor: .controlBackgroundColor),
+                in: RoundedRectangle(cornerRadius: 14))
     }
 
     private func applicationRow(_ app: InstalledApplication) -> some View {
@@ -632,7 +679,13 @@ struct ApplicationSettingsView: View {
     }
 
     private func addManualIdentifier() {
-        add(manualIdentifier.trimmingCharacters(in: .whitespacesAndNewlines))
+        let identifier = manualIdentifier.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !identifier.isEmpty else { return }
+        if titleRulesByApp[identifier] == nil {
+            titleRulesByApp[identifier] = []
+            persistTitleRules()
+        }
+        add(identifier)
         manualIdentifier = ""
     }
 

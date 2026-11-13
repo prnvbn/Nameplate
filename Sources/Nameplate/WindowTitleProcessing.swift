@@ -1,7 +1,6 @@
 import Foundation
 
 private let titleRulesDefaultsKey = "windowTitleRulesByBundleIdentifier"
-private let previousStripRuleKey = "stripTrailingTitleSegmentBundleIdentifiers"
 
 struct WindowTitleRule: Codable, Equatable, Identifiable {
     enum Kind: String, Codable, CaseIterable {
@@ -12,7 +11,7 @@ struct WindowTitleRule: Codable, Equatable, Identifiable {
 
     var id = UUID()
     var kind: Kind = .removeAfter
-    var pattern = " - "
+    var pattern = ""
     var replacement = ""
     var isEnabled = true
 
@@ -48,7 +47,9 @@ struct WindowTitleRule: Codable, Equatable, Identifiable {
 enum WindowTitleProcessing {
     static func separator(in title: String) -> String? {
         [" — ", " - ", " – "]
-            .compactMap { separator in title.range(of: separator, options: .backwards).map { (separator, $0) } }
+            .compactMap { separator in
+                title.range(of: separator, options: .backwards).map { (separator, $0) }
+            }
             .max(by: { $0.1.lowerBound < $1.1.lowerBound })?
             .0
     }
@@ -56,11 +57,11 @@ enum WindowTitleProcessing {
     static var rulesByApp: [String: [WindowTitleRule]] {
         get {
             if let data = UserDefaults.standard.data(forKey: titleRulesDefaultsKey),
-               let rules = try? JSONDecoder().decode([String: [WindowTitleRule]].self, from: data) {
+                let rules = try? JSONDecoder().decode([String: [WindowTitleRule]].self, from: data)
+            {
                 return rules
             }
-            let previous = UserDefaults.standard.stringArray(forKey: previousStripRuleKey) ?? []
-            return Dictionary(uniqueKeysWithValues: previous.map { ($0, [WindowTitleRule()]) })
+            return [:]
         }
         set {
             guard let data = try? JSONEncoder().encode(newValue) else { return }
