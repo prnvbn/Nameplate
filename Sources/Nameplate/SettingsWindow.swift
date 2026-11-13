@@ -622,7 +622,20 @@ struct ApplicationSettingsView: View {
     private func presetPlate(_ title: String, preset: NameplatePreset, compact: Bool = false)
         -> some View
     {
-        if preset == .licensePlate {
+        switch preset {
+        case .native:
+            Text(title)
+                .font(Font(preset.font))
+                .foregroundStyle(Color(nsColor: preset.textColor))
+                .lineLimit(1)
+                .padding(.horizontal, compact ? 12 : 18)
+                .frame(height: compact ? 32 : 36)
+                .background(Color(nsColor: preset.backgroundColor),
+                            in: RoundedRectangle(cornerRadius: preset.cornerRadius))
+                .overlay(RoundedRectangle(cornerRadius: preset.cornerRadius)
+                    .stroke(Color.white.opacity(0.14), lineWidth: 0.5))
+                .shadow(color: .black.opacity(0.22), radius: 5, y: 2)
+        case .licensePlate:
             Text(preset.displayText(title))
                 .font(
                     Font(compact ? .monospacedSystemFont(ofSize: 12, weight: .bold) : preset.font)
@@ -640,15 +653,6 @@ struct ApplicationSettingsView: View {
                         .stroke(Color(white: 0.25), lineWidth: 1.5)
                 )
                 .padding(3)
-                .background(
-                    Color(nsColor: preset.backgroundColor),
-                    in: RoundedRectangle(cornerRadius: preset.cornerRadius))
-        } else {
-            Text(title)
-                .font(Font(preset.font))
-                .foregroundStyle(Color(nsColor: preset.textColor))
-                .padding(.horizontal, compact ? 10 : 18)
-                .frame(height: compact ? 30 : 42)
                 .background(
                     Color(nsColor: preset.backgroundColor),
                     in: RoundedRectangle(cornerRadius: preset.cornerRadius))

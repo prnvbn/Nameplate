@@ -44,9 +44,16 @@ final class MissionControlTitleOverlay {
     private func labelFrame(for thumbnail: MissionControlThumbnail, preset: NameplatePreset) -> NSRect {
         let textWidth = (preset.displayText(thumbnail.title) as NSString)
             .size(withAttributes: [.font: preset.font]).width
-        let width = min(textWidth + (preset == .licensePlate ? 32 : 56),
-                        max(thumbnail.frame.width - 16, 100), 400)
-        let height: CGFloat = preset == .licensePlate ? 40 : 42
+        let width: CGFloat
+        let height: CGFloat
+        switch preset {
+        case .native:
+            width = ceil(textWidth) + 44
+            height = 36
+        case .licensePlate:
+            width = min(textWidth + 32, max(thumbnail.frame.width - 16, 100), 400)
+            height = 40
+        }
         return NSRect(
             x: thumbnail.frame.midX - width / 2,
             y: (NSScreen.screens.first?.frame.maxY ?? 0) - thumbnail.frame.midY - height / 2,
@@ -66,12 +73,19 @@ final class MissionControlTitleOverlay {
 
         let background = NSView(frame: NSRect(origin: .zero, size: frame.size))
         background.wantsLayer = true
-        background.layer?.backgroundColor = preset.backgroundColor.cgColor
-        background.layer?.cornerRadius = preset.cornerRadius
-        background.autoresizingMask = [.width, .height]
-        panel.contentView?.addSubview(background)
-
-        if preset == .licensePlate {
+        let labelContainer: NSView
+        switch preset {
+        case .native:
+            background.layer?.backgroundColor = preset.backgroundColor.cgColor
+            background.layer?.borderColor = NSColor(calibratedWhite: 1, alpha: 0.14).cgColor
+            background.layer?.borderWidth = 0.5
+            background.layer?.shadowColor = NSColor.black.cgColor
+            background.layer?.shadowOpacity = 0.22
+            background.layer?.shadowRadius = 5
+            background.layer?.shadowOffset = CGSize(width: 0, height: -2)
+            labelContainer = panel.contentView ?? background
+        case .licensePlate:
+            background.layer?.backgroundColor = preset.backgroundColor.cgColor
             let face = NSView(frame: background.bounds.insetBy(dx: 3, dy: 3))
             face.wantsLayer = true
             face.layer?.backgroundColor = NSColor(calibratedRed: 0.94, green: 0.93, blue: 0.87, alpha: 1).cgColor
@@ -80,14 +94,38 @@ final class MissionControlTitleOverlay {
             face.layer?.borderWidth = 1.5
             face.autoresizingMask = [.width, .height]
             background.addSubview(face)
+            labelContainer = panel.contentView ?? background
+        }
+        background.layer?.cornerRadius = preset.cornerRadius
+        background.autoresizingMask = [.width, .height]
+        panel.contentView?.addSubview(background)
+
+        if preset == .native {
+            let text = CATextLayer()
+            text.string = NSAttributedString(
+                string: preset.displayText(title),
+                attributes: [.font: preset.font, .foregroundColor: preset.textColor]
+            )
+            text.alignmentMode = .center
+            text.isWrapped = false
+            text.truncationMode = .none
+            text.contentsScale = panel.backingScaleFactor
+            let textHeight = ceil(preset.font.ascender - preset.font.descender) + 2
+            text.frame = CGRect(
+                x: 0, y: (frame.height - textHeight) / 2,
+                width: frame.width, height: textHeight
+            )
+            background.layer?.addSublayer(text)
+            panel.orderFrontRegardless()
+            return panel
         }
 
         let label = NSTextField(labelWithString: preset.displayText(title))
-        let padding: CGFloat = preset == .licensePlate ? 12 : 18
+        let padding: CGFloat = preset == .native ? 22 : 12
         label.textColor = preset.textColor
         label.font = preset.font
         label.alignment = .center
-        label.lineBreakMode = .byTruncatingMiddle
+        label.lineBreakMode = preset == .native ? .byClipping : .byTruncatingMiddle
         let labelHeight = label.intrinsicContentSize.height
         label.frame = NSRect(
             x: padding,
@@ -96,7 +134,7 @@ final class MissionControlTitleOverlay {
             height: labelHeight
         )
         label.autoresizingMask = [.width, .minYMargin, .maxYMargin]
-        panel.contentView?.addSubview(label)
+        labelContainer.addSubview(label)
         panel.orderFrontRegardless()
         return panel
     }

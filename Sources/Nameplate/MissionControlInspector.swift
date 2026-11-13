@@ -7,11 +7,15 @@ struct MissionControlThumbnail {
     let frame: CGRect
 }
 
+private struct AppWindowTitle {
+    var text: String?
+}
+
 @MainActor
 func missionControlThumbnails(for appBundleIdentifiers: [String]) -> [MissionControlThumbnail] {
     guard AXIsProcessTrusted() else { return [] }
-    let appWindowIDs = windowIDs(for: appBundleIdentifiers)
-    guard !appWindowIDs.isEmpty else { return [] }
+    let appWindowTitles = windowTitles(for: appBundleIdentifiers)
+    guard !appWindowTitles.isEmpty else { return [] }
 
     var thumbnails: [MissionControlThumbnail] = []
     for bundleIdentifier in ["com.apple.WindowManager", "com.apple.dock"] {
@@ -28,14 +32,14 @@ func missionControlThumbnails(for appBundleIdentifiers: [String]) -> [MissionCon
             if let identifier = axString(element, kAXIdentifierAttribute as CFString),
                 let targetBundleIdentifier = appBundleIdentifiers.first(where: { identifier.hasPrefix($0 + ".space.") }),
                 let windowID = axWindowID(element),
-                appWindowIDs.contains(windowID),
+                let originalTitle = appWindowTitles[windowID],
                 let title = axString(element, kAXTitleAttribute as CFString),
                 let frame = axFrame(element),
                 frame.width > 0, frame.height > 0
             {
                 thumbnails.append(MissionControlThumbnail(
                     windowID: windowID,
-                    title: WindowTitleProcessing.displayTitle(title, for: targetBundleIdentifier),
+                    title: WindowTitleProcessing.displayTitle(originalTitle.text ?? title, for: targetBundleIdentifier),
                     frame: frame
                 ))
             }
@@ -57,20 +61,41 @@ func inspectMissionControl(for appBundleIdentifiers: [String]) {
     }
 }
 
-private func windowIDs(for appBundleIdentifiers: [String]) -> Set<Int> {
+private func windowTitles(for appBundleIdentifiers: [String]) -> [Int: AppWindowTitle] {
     let appPIDs = Set(NSWorkspace.shared.runningApplications
         .filter { appBundleIdentifiers.contains($0.bundleIdentifier ?? "") }
         .map(\.processIdentifier))
     guard let windows = CGWindowListCopyWindowInfo(.optionAll, kCGNullWindowID)
-        as? [[String: Any]] else { return [] }
+        as? [[String: Any]] else { return [:] }
 
-    return Set(windows.compactMap { window in
+    var titles: [Int: AppWindowTitle] = [:]
+    var windowIDsByPID: [pid_t: Set<Int>] = [:]
+    for window in windows {
         guard let owner = window[kCGWindowOwnerPID as String] as? NSNumber,
             appPIDs.contains(owner.int32Value),
             let number = window[kCGWindowNumber as String] as? NSNumber
-        else { return nil }
-        return number.intValue
-    })
+        else { continue }
+        let windowID = number.intValue
+        titles[windowID] = AppWindowTitle(text: (window[kCGWindowName as String] as? String).flatMap {
+            $0.isEmpty ? nil : $0
+        })
+        windowIDsByPID[owner.int32Value, default: []].insert(windowID)
+    }
+
+    for (pid, windowIDs) in windowIDsByPID {
+        let application = AXUIElementCreateApplication(pid)
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(application, kAXWindowsAttribute as CFString, &value) == .success,
+            let windows = value as? [AXUIElement]
+        else { continue }
+        for window in windows {
+            guard let windowID = axWindowID(window), windowIDs.contains(windowID),
+                let title = axString(window, kAXTitleAttribute as CFString), !title.isEmpty
+            else { continue }
+            titles[windowID]?.text = title
+        }
+    }
+    return titles
 }
 
 private func axWindowID(_ element: AXUIElement) -> Int? {
