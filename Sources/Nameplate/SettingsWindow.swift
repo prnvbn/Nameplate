@@ -261,17 +261,6 @@ struct ApplicationSettingsView: View {
                                     toggle(identifier)
                                 } label: {
                                     HStack(spacing: 10) {
-                                        Image(
-                                            systemName: selectedIdentifiers.contains(identifier)
-                                                ? "checkmark.circle.fill" : "circle"
-                                        )
-                                        .foregroundStyle(
-                                            selectedIdentifiers.contains(identifier)
-                                                ? Color.accentColor : Color.secondary
-                                        )
-                                        .accessibilityLabel(
-                                            selectedIdentifiers.contains(identifier)
-                                                ? "Selected" : "Not selected")
                                         if let app = installedApps.first(where: {
                                             $0.bundleIdentifier == identifier
                                         }) {
@@ -279,9 +268,17 @@ struct ApplicationSettingsView: View {
                                         } else {
                                             Label(identifier, systemImage: "app")
                                         }
+                                        Spacer()
+                                        if selectedIdentifiers.contains(identifier) {
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .foregroundStyle(Color.accentColor)
+                                                .accessibilityHidden(true)
+                                        }
                                     }
+                                    .contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
+                                .accessibilityLabel("\(identifier), \(selectedIdentifiers.contains(identifier) ? "Selected" : "Not selected")")
                                 Button {
                                     if expandedTitleProcessing.contains(identifier) {
                                         expandedTitleProcessing.remove(identifier)
