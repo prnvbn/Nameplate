@@ -97,6 +97,11 @@ struct ApplicationSettingsView: View {
     @State private var search = ""
     @State private var manualIdentifier = ""
     @State private var selectedPreset = NameplatePreset.selected
+    @State private var basicOpacity = NameplatePreset.basicOpacity
+    @State private var basicTextColor = Color(nsColor: NameplatePreset.basicTextColor)
+    @State private var accentRailColor = Color(nsColor: NameplatePreset.accentRailColor)
+    @State private var accentRailUsesAppColors = NameplatePreset.accentRailUsesAppColors
+    @State private var stickyNoteColor = Color(nsColor: NameplatePreset.stickyNoteColor)
     @State private var page: Page? = .general
     @State private var launchAtLogin = LaunchAtLogin.isEnabled
     @State private var accessibilityGranted = AccessibilityAccess.isGranted
@@ -578,10 +583,63 @@ struct ApplicationSettingsView: View {
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                        if selectedPreset == preset && preset != .licensePlate {
+                            VStack(alignment: .leading, spacing: 12) {
+                                styleControls(for: preset)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.bottom, 16)
+                        }
                         if preset != NameplatePreset.allCases.last { Divider() }
                     }
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func styleControls(for preset: NameplatePreset) -> some View {
+        switch preset {
+        case .basic:
+            HStack {
+                Text("Opacity")
+                Slider(value: $basicOpacity, in: 0.2...1)
+                    .onChange(of: basicOpacity) { _, value in
+                        NameplatePreset.basicOpacity = value
+                        onChange()
+                    }
+                Text("\(Int(basicOpacity * 100))%")
+                    .monospacedDigit()
+                    .frame(width: 42, alignment: .trailing)
+            }
+            ColorPicker("Text color", selection: $basicTextColor, supportsOpacity: false)
+                .onChange(of: basicTextColor) { _, value in
+                    NameplatePreset.basicTextColor = NSColor(value)
+                    onChange()
+                }
+        case .accentRail:
+            Toggle("Color by app", isOn: $accentRailUsesAppColors)
+                .onChange(of: accentRailUsesAppColors) { _, value in
+                    NameplatePreset.accentRailUsesAppColors = value
+                    onChange()
+                }
+            ColorPicker("Accent color", selection: $accentRailColor, supportsOpacity: false)
+                .onChange(of: accentRailColor) { _, value in
+                    NameplatePreset.accentRailColor = NSColor(value)
+                    accentRailUsesAppColors = false
+                    onChange()
+                }
+            Text("Choosing a color uses it for every app.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        case .stickyNote:
+            ColorPicker("Paper color", selection: $stickyNoteColor, supportsOpacity: false)
+                .onChange(of: stickyNoteColor) { _, value in
+                    NameplatePreset.stickyNoteColor = NSColor(value)
+                    onChange()
+                }
+        case .licensePlate:
+            EmptyView()
         }
     }
 

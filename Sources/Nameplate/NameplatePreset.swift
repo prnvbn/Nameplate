@@ -24,7 +24,7 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
     var description: String {
         switch self {
         case .basic: "Compact dark label with macOS system type"
-        case .accentRail: "Dark label with a color strip for each app"
+        case .accentRail: "Dark label with a customizable color strip"
         case .stickyNote: "Pastel yellow note with a soft paper shadow"
         case .licensePlate: "Ivory face, bold lettering, and a dark border"
         }
@@ -32,16 +32,16 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
 
     var backgroundColor: NSColor {
         switch self {
-        case .basic: NSColor(calibratedWhite: 0.12, alpha: 0.82)
+        case .basic: NSColor(calibratedWhite: 0.12, alpha: Self.basicOpacity)
         case .accentRail: NSColor(calibratedWhite: 0.12, alpha: 0.9)
-        case .stickyNote: NSColor(calibratedRed: 1, green: 0.96, blue: 0.70, alpha: 1)
+        case .stickyNote: Self.stickyNoteColor
         case .licensePlate: NSColor(calibratedWhite: 0.08, alpha: 1)
         }
     }
 
     var textColor: NSColor {
         switch self {
-        case .basic: NSColor(calibratedWhite: 1, alpha: 0.96)
+        case .basic: Self.basicTextColor
         case .accentRail: NSColor(calibratedWhite: 1, alpha: 0.96)
         case .stickyNote: NSColor(calibratedWhite: 0.18, alpha: 1)
         case .licensePlate: NSColor(calibratedWhite: 0.08, alpha: 1)
@@ -70,7 +70,28 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
         self == .licensePlate ? title.uppercased() : title
     }
 
+    static var basicOpacity: Double {
+        get { UserDefaults.standard.object(forKey: "basicOpacity") as? Double ?? 0.82 }
+        set { UserDefaults.standard.set(newValue, forKey: "basicOpacity") }
+    }
+
+    static var basicTextColor: NSColor {
+        get { storedColor(for: "basicTextColor", fallback: NSColor(calibratedWhite: 1, alpha: 0.96)) }
+        set { saveColor(newValue, for: "basicTextColor") }
+    }
+
+    static var accentRailColor: NSColor {
+        get { storedColor(for: "accentRailColor", fallback: NSColor(calibratedRed: 0.36, green: 0.65, blue: 0.98, alpha: 1)) }
+        set { saveColor(newValue, for: "accentRailColor") }
+    }
+
+    static var accentRailUsesAppColors: Bool {
+        get { UserDefaults.standard.object(forKey: "accentRailUsesAppColors") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "accentRailUsesAppColors") }
+    }
+
     private func accentColor(for bundleIdentifier: String) -> NSColor {
+        guard Self.accentRailUsesAppColors else { return Self.accentRailColor }
         let colors: [NSColor] = [
             NSColor(calibratedRed: 0.36, green: 0.65, blue: 0.98, alpha: 1),
             NSColor(calibratedRed: 0.98, green: 0.59, blue: 0.39, alpha: 1),
@@ -82,6 +103,26 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
             ($0 ^ UInt64($1)) &* 1_099_511_628_211
         }
         return colors[Int(hash % UInt64(colors.count))]
+    }
+
+    static var stickyNoteColor: NSColor {
+        get { storedColor(for: "stickyNoteColor", fallback: NSColor(calibratedRed: 1, green: 0.96, blue: 0.70, alpha: 1)) }
+        set { saveColor(newValue, for: "stickyNoteColor") }
+    }
+
+    private static var stickyNoteShade: NSColor {
+        stickyNoteColor.blended(withFraction: 0.14, of: .black) ?? stickyNoteColor
+    }
+
+    private static func storedColor(for key: String, fallback: NSColor) -> NSColor {
+        guard let components = UserDefaults.standard.array(forKey: key) as? [Double],
+              components.count == 3 else { return fallback }
+        return NSColor(srgbRed: components[0], green: components[1], blue: components[2], alpha: 1)
+    }
+
+    private static func saveColor(_ color: NSColor, for key: String) {
+        guard let rgb = color.usingColorSpace(.sRGB) else { return }
+        UserDefaults.standard.set([Double(rgb.redComponent), Double(rgb.greenComponent), Double(rgb.blueComponent)], forKey: key)
     }
 
     static var selected: NameplatePreset {
@@ -156,7 +197,7 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
             background.addSubview(rail)
         case .stickyNote:
             background.layer?.backgroundColor = preset.backgroundColor.cgColor
-            background.layer?.borderColor = NSColor(calibratedRed: 0.78, green: 0.72, blue: 0.43, alpha: 0.35).cgColor
+            background.layer?.borderColor = Self.stickyNoteShade.withAlphaComponent(0.45).cgColor
             background.layer?.borderWidth = 0.5
             background.layer?.shadowColor = NSColor.black.cgColor
             background.layer?.shadowOpacity = 0.3
@@ -165,7 +206,7 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
             let adhesive = NSView(frame: NSRect(x: 0, y: frame.height - 14,
                                                  width: frame.width, height: 14))
             adhesive.wantsLayer = true
-            adhesive.layer?.backgroundColor = NSColor(calibratedRed: 0.96, green: 0.87, blue: 0.49, alpha: 0.45).cgColor
+            adhesive.layer?.backgroundColor = Self.stickyNoteShade.withAlphaComponent(0.45).cgColor
             adhesive.autoresizingMask = [.width, .minYMargin]
             background.addSubview(adhesive)
             let fold = CAShapeLayer()
@@ -175,7 +216,7 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
             foldPath.addLine(to: CGPoint(x: frame.width, y: 19))
             foldPath.closeSubpath()
             fold.path = foldPath
-            fold.fillColor = NSColor(calibratedRed: 0.91, green: 0.84, blue: 0.54, alpha: 1).cgColor
+            fold.fillColor = Self.stickyNoteShade.cgColor
             background.layer?.addSublayer(fold)
         case .licensePlate:
             background.layer?.backgroundColor = preset.backgroundColor.cgColor
@@ -282,7 +323,7 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
             ZStack(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: preset.cornerRadius)
                     .fill(Color(nsColor: preset.backgroundColor))
-                Color(red: 0.96, green: 0.87, blue: 0.49).opacity(0.45)
+                Color(nsColor: Self.stickyNoteShade).opacity(0.45)
                     .frame(height: compact ? 10 : 14)
                 Text(title)
                     .font(Font(preset.font))
@@ -297,7 +338,7 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
                     path.addLine(to: CGPoint(x: 19, y: 0))
                     path.closeSubpath()
                 }
-                .fill(Color(red: 0.91, green: 0.84, blue: 0.54))
+                .fill(Color(nsColor: Self.stickyNoteShade))
                 .frame(width: 19, height: 19)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
             }
