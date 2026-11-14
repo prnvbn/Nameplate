@@ -633,6 +633,29 @@ struct ApplicationSettingsView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         case .stickyNote:
+            Text("Paper colors")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            HStack(spacing: 10) {
+                ForEach(NameplatePreset.stickyNotePaperColors) { paper in
+                    let isSelected = paper.matches(NSColor(stickyNoteColor))
+                    Button {
+                        stickyNoteColor = Color(nsColor: paper.color)
+                    } label: {
+                        Circle()
+                            .fill(Color(nsColor: paper.color))
+                            .frame(width: 28, height: 28)
+                            .overlay(Circle().strokeBorder(Color.black.opacity(0.12), lineWidth: 1))
+                            .padding(3)
+                            .overlay(Circle().strokeBorder(isSelected ? Color.accentColor : .clear,
+                                                           lineWidth: 2))
+                    }
+                    .buttonStyle(.plain)
+                    .help(paper.id)
+                    .accessibilityLabel("\(paper.id) sticky note")
+                    .accessibilityAddTraits(isSelected ? .isSelected : [])
+                }
+            }
             ColorPicker("Paper color", selection: $stickyNoteColor, supportsOpacity: false)
                 .onChange(of: stickyNoteColor) { _, value in
                     NameplatePreset.stickyNoteColor = NSColor(value)

@@ -5,6 +5,28 @@ private let nameplatePresetDefaultsKey = "nameplatePreset"
 
 @MainActor
 enum NameplatePreset: String, CaseIterable, Identifiable {
+    struct StickyNotePaperColor: Identifiable {
+        let id: String
+        let color: NSColor
+
+        func matches(_ selected: NSColor) -> Bool {
+            guard let first = color.usingColorSpace(.sRGB),
+                  let second = selected.usingColorSpace(.sRGB) else { return false }
+            return abs(first.redComponent - second.redComponent) < 0.01
+                && abs(first.greenComponent - second.greenComponent) < 0.01
+                && abs(first.blueComponent - second.blueComponent) < 0.01
+        }
+    }
+
+    static let stickyNotePaperColors: [StickyNotePaperColor] = [
+        .init(id: "Yellow", color: NSColor(srgbRed: 1, green: 0.96, blue: 0.70, alpha: 1)),
+        .init(id: "Pink", color: NSColor(srgbRed: 1, green: 0.79, blue: 0.85, alpha: 1)),
+        .init(id: "Blue", color: NSColor(srgbRed: 0.76, green: 0.88, blue: 1, alpha: 1)),
+        .init(id: "Green", color: NSColor(srgbRed: 0.80, green: 0.94, blue: 0.76, alpha: 1)),
+        .init(id: "Lavender", color: NSColor(srgbRed: 0.88, green: 0.82, blue: 0.97, alpha: 1)),
+        .init(id: "Peach", color: NSColor(srgbRed: 1, green: 0.86, blue: 0.74, alpha: 1)),
+    ]
+
     case basic
     case accentRail
     case stickyNote
@@ -106,7 +128,7 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
     }
 
     static var stickyNoteColor: NSColor {
-        get { storedColor(for: "stickyNoteColor", fallback: NSColor(calibratedRed: 1, green: 0.96, blue: 0.70, alpha: 1)) }
+        get { storedColor(for: "stickyNoteColor", fallback: stickyNotePaperColors[0].color) }
         set { saveColor(newValue, for: "stickyNoteColor") }
     }
 
