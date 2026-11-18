@@ -12,7 +12,7 @@ let package = Package(
         .executableTarget(
             name: "Nameplate",
             path: ".",
-            exclude: ["Assets", "Tests", "Makefile", "README.md", ".github", "dist"],
+            exclude: ["Assets", "Tests", "Makefile", "README.md", "LICENSE", ".github", "dist"],
             sources: ["Sources/Nameplate"],
             resources: [.copy("version.txt"), .process("AppResources")],
             swiftSettings: [
