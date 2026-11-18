@@ -10,3 +10,7 @@
 | ![Mission Control before Nameplate](Assets/before.jpeg) | ![Mission Control with Nameplate window labels](Assets/after.jpeg) |
 
 TODO: improve README
+
+---
+
+Logo designed by [Chahak Surana](https://chahaksurana.com). Thanks for giving Nameplate its look!
