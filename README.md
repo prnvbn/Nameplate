@@ -9,7 +9,17 @@
 | ------------------------------------------------------- | ------------------------------------------------------------------ |
 | ![Mission Control before Nameplate](Assets/before.jpeg) | ![Mission Control with Nameplate window labels](Assets/after.jpeg) |
 
-TODO: improve README
+TODO: Improve README
+
+## Installation
+
+Requires an Apple Silicon Mac running macOS 26 or later.
+
+### via brew
+
+```sh
+brew install --cask prnvbn/tap/nameplate
+```
 
 ---
 
