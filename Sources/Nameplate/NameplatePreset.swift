@@ -107,26 +107,6 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
         set { saveColor(newValue, for: "accentRailColor") }
     }
 
-    static var accentRailUsesAppColors: Bool {
-        get { UserDefaults.standard.object(forKey: "accentRailUsesAppColors") as? Bool ?? false }
-        set { UserDefaults.standard.set(newValue, forKey: "accentRailUsesAppColors") }
-    }
-
-    private func accentColor(for bundleIdentifier: String) -> NSColor {
-        guard Self.accentRailUsesAppColors else { return Self.accentRailColor }
-        let colors: [NSColor] = [
-            NSColor(calibratedRed: 0.36, green: 0.65, blue: 0.98, alpha: 1),
-            NSColor(calibratedRed: 0.98, green: 0.59, blue: 0.39, alpha: 1),
-            NSColor(calibratedRed: 0.49, green: 0.79, blue: 0.58, alpha: 1),
-            NSColor(calibratedRed: 0.75, green: 0.57, blue: 0.94, alpha: 1),
-            NSColor(calibratedRed: 0.96, green: 0.77, blue: 0.39, alpha: 1),
-        ]
-        let hash = bundleIdentifier.utf8.reduce(UInt64(14_695_981_039_346_656_037)) {
-            ($0 ^ UInt64($1)) &* 1_099_511_628_211
-        }
-        return colors[Int(hash % UInt64(colors.count))]
-    }
-
     static var stickyNoteColor: NSColor {
         get { storedColor(for: "stickyNoteColor", fallback: stickyNotePaperColors[0].color) }
         set { saveColor(newValue, for: "stickyNoteColor") }
@@ -214,7 +194,7 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
             background.layer?.shadowOffset = CGSize(width: 0, height: -2)
             let rail = NSView(frame: NSRect(x: 8, y: 7, width: 5, height: frame.height - 14))
             rail.wantsLayer = true
-            rail.layer?.backgroundColor = preset.accentColor(for: bundleIdentifier).cgColor
+            rail.layer?.backgroundColor = NameplatePreset.accentRailColor.cgColor
             rail.layer?.cornerRadius = 2.5
             background.addSubview(rail)
         case .stickyNote:
@@ -329,7 +309,7 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
         case .accentRail:
             HStack(spacing: 10) {
                 RoundedRectangle(cornerRadius: 2.5)
-                    .fill(Color(nsColor: preset.accentColor(for: "com.example.app")))
+                    .fill(Color(nsColor: NameplatePreset.accentRailColor))
                     .frame(width: 5, height: compact ? 17 : 22)
                 Text(title)
                     .font(Font(preset.font))

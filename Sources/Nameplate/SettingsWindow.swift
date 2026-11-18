@@ -100,7 +100,6 @@ struct ApplicationSettingsView: View {
     @State private var basicOpacity = NameplatePreset.basicOpacity
     @State private var basicTextColor = Color(nsColor: NameplatePreset.basicTextColor)
     @State private var accentRailColor = Color(nsColor: NameplatePreset.accentRailColor)
-    @State private var accentRailUsesAppColors = NameplatePreset.accentRailUsesAppColors
     @State private var stickyNoteColor = Color(nsColor: NameplatePreset.stickyNoteColor)
     @State private var page: Page? = .general
     @State private var launchAtLogin = LaunchAtLogin.isEnabled
@@ -618,20 +617,11 @@ struct ApplicationSettingsView: View {
                     onChange()
                 }
         case .accentRail:
-            Toggle("Color by app", isOn: $accentRailUsesAppColors)
-                .onChange(of: accentRailUsesAppColors) { _, value in
-                    NameplatePreset.accentRailUsesAppColors = value
-                    onChange()
-                }
             ColorPicker("Accent color", selection: $accentRailColor, supportsOpacity: false)
                 .onChange(of: accentRailColor) { _, value in
                     NameplatePreset.accentRailColor = NSColor(value)
-                    accentRailUsesAppColors = false
                     onChange()
                 }
-            Text("Choosing a color uses it for every app.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
         case .stickyNote:
             Text("Paper colors")
                 .font(.caption)
