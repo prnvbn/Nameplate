@@ -1,0 +1,41 @@
+name: Update Homebrew cask
+
+on:
+  release:
+    types: [published, released, edited]
+  workflow_run:
+    workflows: [Build and Release]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version, empty uses latest stable
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: homebrew-release
+  cancel-in-progress: false
+
+jobs:
+  update-cask:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: prnvbn/gha/homebrew-release@main
+        with:
+          package-type: cask
+          app-id: ${{ secrets.GH_APP_ID }}
+          app-private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          version: ${{ inputs.version }}
+          cask: nameplate
+          asset: Nameplate-{version}-macos-arm64.dmg
+          app-name: Nameplate
+          description: Readable window labels in macOS Mission Control
+          homepage: https://github.com/prnvbn/Nameplate
+          macos: tahoe
+          arch: arm64
