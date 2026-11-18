@@ -21,12 +21,14 @@ release: test
 	rm -rf "$(APP)" "$(ZIP)" "$(DMG)" "$(DMG_STAGE)"
 	mkdir -p "$(APP)/Contents/MacOS" "$(APP)/Contents/Resources"
 	cp "$(BUILD_DIR)/$(APP_NAME)" "$(APP)/Contents/MacOS/$(APP_NAME)"
+	cp "Assets/Nameplate.icns" "$(APP)/Contents/Resources/Nameplate.icns"
 	cp -R "$(BUILD_DIR)/Nameplate_Nameplate.bundle" "$(APP)/Contents/Resources/"
 	/usr/libexec/PlistBuddy -c 'Add :CFBundleIdentifier string $(BUNDLE_ID)' \
 		-c 'Add :CFBundleName string $(APP_NAME)' \
 		-c 'Add :CFBundleDisplayName string $(APP_NAME)' \
 		-c 'Add :CFBundleExecutable string $(APP_NAME)' \
 		-c 'Add :CFBundlePackageType string APPL' \
+		-c 'Add :CFBundleIconFile string Nameplate'  \
 		-c 'Add :CFBundleShortVersionString string $(VERSION)' \
 		-c 'Add :CFBundleVersion string $(VERSION)' \
 		-c 'Add :LSMinimumSystemVersion string 26.0' \
@@ -43,6 +45,7 @@ release: test
 	ditto "$(APP)" "$(DMG_STAGE)/$(APP_NAME).app"
 	create-dmg \
 		--volname "$(APP_NAME)" \
+		--volicon "Assets/Nameplate.icns" \
 		--window-size 600 360 \
 		--icon-size 128 \
 		--icon "$(APP_NAME).app" 150 175 \

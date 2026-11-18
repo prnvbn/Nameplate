@@ -14,7 +14,9 @@ struct Nameplate: App {
             Divider()
             Button("Quit Nameplate") { delegate.quitNameplate() }
         } label: {
-            Text("NP")
+            Image("MenuBarIcon", bundle: .module)
+                .renderingMode(.template)
+                .accessibilityLabel("Nameplate")
         }
 
         Settings {

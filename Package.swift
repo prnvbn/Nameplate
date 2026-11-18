@@ -12,9 +12,9 @@ let package = Package(
         .executableTarget(
             name: "Nameplate",
             path: ".",
-            exclude: ["Tests", "Makefile", "README.md", ".github", "dist"],
+            exclude: ["Assets", "Tests", "Makefile", "README.md", ".github", "dist"],
             sources: ["Sources/Nameplate"],
-            resources: [.copy("version.txt")],
+            resources: [.copy("version.txt"), .process("AppResources")],
             swiftSettings: [
                 .enableUpcomingFeature("ApproachableConcurrency"),
             ],

@@ -103,12 +103,12 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
     }
 
     static var accentRailColor: NSColor {
-        get { storedColor(for: "accentRailColor", fallback: NSColor(calibratedRed: 0.36, green: 0.65, blue: 0.98, alpha: 1)) }
+        get { storedColor(for: "accentRailColor", fallback: NSColor(srgbRed: 214.0 / 255, green: 245.0 / 255, blue: 156.0 / 255, alpha: 1)) }
         set { saveColor(newValue, for: "accentRailColor") }
     }
 
     static var accentRailUsesAppColors: Bool {
-        get { UserDefaults.standard.object(forKey: "accentRailUsesAppColors") as? Bool ?? true }
+        get { UserDefaults.standard.object(forKey: "accentRailUsesAppColors") as? Bool ?? false }
         set { UserDefaults.standard.set(newValue, forKey: "accentRailUsesAppColors") }
     }
 
