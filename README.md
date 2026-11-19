@@ -35,6 +35,10 @@ Requires an Apple Silicon Mac running macOS 26 or later.
 brew install --cask prnvbn/tap/nameplate
 ```
 
+### via releases
+
+[Download the latest DMG](https://github.com/prnvbn/Nameplate/releases/latest/download/Nameplate-macos-arm64.dmg), open it, and drag Nameplate into Applications.
+
 ## Customize nameplates
 
 There are a few _nameplate_ presets available. If you have any ideas, feel free to [create an issue](https://github.com/prnvbn/Nameplate/issues).
