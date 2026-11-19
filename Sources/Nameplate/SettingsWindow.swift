@@ -97,6 +97,7 @@ struct ApplicationSettingsView: View {
     @State private var search = ""
     @State private var manualIdentifier = ""
     @State private var selectedPreset = NameplatePreset.selected
+    @State private var plateScale = NameplatePreset.plateScale
     @State private var basicOpacity = NameplatePreset.basicOpacity
     @State private var basicTextColor = Color(nsColor: NameplatePreset.basicTextColor)
     @State private var accentRailColor = Color(nsColor: NameplatePreset.accentRailColor)
@@ -551,6 +552,19 @@ struct ApplicationSettingsView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     Text("Preview").font(.headline)
                     nameplatePreview
+                    HStack {
+                        Text("Plate size")
+                        Slider(value: $plateScale, in: 0.5...2, step: 0.05)
+                            .onChange(of: plateScale) { _, value in
+                                NameplatePreset.plateScale = value
+                                onChange()
+                            }
+                        Text("\(Int((plateScale * 100).rounded()))%")
+                            .monospacedDigit()
+                            .frame(width: 48, alignment: .trailing)
+                        Button("Reset") { plateScale = 1 }
+                            .disabled(plateScale == 1)
+                    }
                 }
             }
             settingsCard {
@@ -708,6 +722,7 @@ struct ApplicationSettingsView: View {
                 .padding(16)
             }
             selectedPreset.previewPlate("Example window")
+                .scaleEffect(plateScale)
         }
         .frame(height: 190)
         .overlay(

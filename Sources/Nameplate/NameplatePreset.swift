@@ -92,6 +92,14 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
         self == .licensePlate ? title.uppercased() : title
     }
 
+    static var plateScale: Double {
+        get {
+            let value = UserDefaults.standard.object(forKey: "plateScale") as? Double ?? 1
+            return value.isFinite ? min(2, max(0.5, value)) : 1
+        }
+        set { UserDefaults.standard.set(newValue.isFinite ? min(2, max(0.5, newValue)) : 1, forKey: "plateScale") }
+    }
+
     static var basicOpacity: Double {
         get { UserDefaults.standard.object(forKey: "basicOpacity") as? Double ?? 0.82 }
         set { UserDefaults.standard.set(newValue, forKey: "basicOpacity") }
@@ -156,11 +164,13 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
             width = min(textWidth + 32, max(thumbnail.frame.width - 16, 100), 400)
             height = 40
         }
+        let scaledWidth = width * Self.plateScale
+        let scaledHeight = height * Self.plateScale
         return NSRect(
-            x: thumbnail.frame.midX - width / 2,
-            y: (NSScreen.screens.first?.frame.maxY ?? 0) - thumbnail.frame.midY - height / 2,
-            width: width,
-            height: height
+            x: thumbnail.frame.midX - scaledWidth / 2,
+            y: (NSScreen.screens.first?.frame.maxY ?? 0) - thumbnail.frame.midY - scaledHeight / 2,
+            width: scaledWidth,
+            height: scaledHeight
         )
     }
 
@@ -174,6 +184,12 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
         panel.hidesOnDeactivate = false
         panel.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.screenSaverWindow)))
         panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
+
+        let content = NSView(frame: NSRect(origin: .zero, size: frame.size))
+        panel.contentView = content
+        let frame = NSRect(origin: .zero, size: NSSize(
+            width: frame.width / Self.plateScale, height: frame.height / Self.plateScale))
+        content.bounds = frame
 
         let background = NSView(frame: NSRect(origin: .zero, size: frame.size))
         background.wantsLayer = true
