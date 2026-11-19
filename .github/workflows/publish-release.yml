@@ -104,7 +104,7 @@ jobs:
 
           ## Release notes
 
-          Add release notes here before approving Finalize release.
+          TODO: Add release notes
           NOTES
             gh release create "$tag" --verify-tag --prerelease \
               --title "Nameplate $VERSION" --notes-file "$RUNNER_TEMP/release-notes.md"

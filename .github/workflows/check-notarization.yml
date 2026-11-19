@@ -3,8 +3,8 @@ name: Check notarization
 on:
   workflow_dispatch:
     inputs:
-      release_run_id:
-        description: Release run ID, empty checks the latest release run on main
+      submission_id:
+        description: Apple submission ID, empty checks the newest GitHub release (including prereleases)
         required: false
         type: string
 
@@ -19,26 +19,40 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - name: Select release run
+      - name: Use supplied Apple submission ID
+        if: inputs.submission_id != ''
+        env:
+          SUBMISSION_ID: ${{ inputs.submission_id }}
+        run: |
+          [[ "$SUBMISSION_ID" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]] || {
+            echo 'Enter an Apple submission UUID, not a GitHub run ID.' >&2
+            exit 1
+          }
+          mkdir -p submission
+          printf '{"id":"%s"}\n' "$SUBMISSION_ID" > submission/notarization.json
+      - name: Find submission for the newest GitHub release
+        if: inputs.submission_id == ''
         id: release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          RELEASE_RUN_ID: ${{ inputs.release_run_id }}
         run: |
-          run_id="$RELEASE_RUN_ID"
-          if [[ -z "$run_id" ]]; then
-            run_id=$(gh run list --workflow publish-release.yml --branch main --limit 1 --json databaseId --jq '.[0].databaseId')
-          fi
-          [[ "$run_id" =~ ^[0-9]+$ ]] || { echo 'No release run found. Supply a release run ID.' >&2; exit 1; }
-          path=$(gh api "repos/$GH_REPO/actions/runs/$run_id" --jq .path)
-          test "$path" = .github/workflows/publish-release.yml || {
-            echo 'Select a run of Prepare and publish release.' >&2
+          tag=$(gh release list --exclude-drafts --limit 1 --json tagName --jq '.[0].tagName')
+          [[ -n "$tag" && "$tag" != null ]] || {
+            echo 'No GitHub release found. Supply an Apple submission ID.' >&2
+            exit 1
+          }
+          commit=$(gh api "repos/$GH_REPO/commits/$tag" --jq .sha)
+          run_id=$(gh run list --workflow publish-release.yml --branch main --commit "$commit" --limit 1 --json databaseId --jq '.[0].databaseId')
+          [[ "$run_id" =~ ^[0-9]+$ ]] || {
+            echo 'No build run found for this release. Supply an Apple submission ID.' >&2
             exit 1
           }
           echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "Release: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$tag" >> "$GITHUB_STEP_SUMMARY"
           echo "Release run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$run_id" >> "$GITHUB_STEP_SUMMARY"
       - name: Download saved submission
+        if: inputs.submission_id == ''
         uses: actions/download-artifact@v4
         with:
           name: release-submission
