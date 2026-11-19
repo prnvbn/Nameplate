@@ -13,8 +13,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         print("Nameplate launched")
         NSApp.setActivationPolicy(.accessory)
         AccessibilityAccess.shared.startMonitoring()
+        if !AccessibilityAccess.shared.isGranted {
+            openSettings(showAccessibilitySetup: true)
+        }
 
         startMissionControlMonitoring()
+    }
+
+    func applicationShouldHandleReopen(
+        _ sender: NSApplication, hasVisibleWindows flag: Bool
+    ) -> Bool {
+        openSettings()
+        return true
     }
 
     func startMissionControlMonitoring() {
