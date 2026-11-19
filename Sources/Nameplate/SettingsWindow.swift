@@ -234,14 +234,20 @@ struct ApplicationSettingsView: View {
             settingsCard {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Applications").font(.headline)
-                    Text("Select applications for nameplates and edit their window title rules below.")
+                    Text(
+                        "Select applications for nameplates and edit their window title rules below."
+                    )
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     TextField("Search installed applications", text: $search)
                         .textFieldStyle(.roundedBorder)
                     List(filteredIdentifiers, id: \.self) { identifier in
-                        let applicationName = installedApps.first { $0.bundleIdentifier == identifier }?.name ?? identifier
-                        let rulesAction = expandedTitleProcessing.contains(identifier) ? "Hide rules" : "Edit rules"
+                        let applicationName =
+                            installedApps.first { $0.bundleIdentifier == identifier }?.name
+                            ?? identifier
+                        let rulesAction =
+                            expandedTitleProcessing.contains(identifier)
+                            ? "Hide rules" : "Edit rules"
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
                                 Button {
@@ -277,7 +283,7 @@ struct ApplicationSettingsView: View {
                                     }
                                 } label: {
                                     Text(rulesAction)
-                                    .font(.caption)
+                                        .font(.caption)
                                 }
                                 .buttonStyle(.borderless)
                                 .help("\(rulesAction) for \(applicationName)")
@@ -439,13 +445,17 @@ struct ApplicationSettingsView: View {
             )
             .textFieldStyle(.roundedBorder)
             if !accessibility.isGranted {
-                Text("Allow Accessibility access in General settings, then refresh to use a window title from this application.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Text(
+                    "Allow Accessibility access in General settings, then refresh to use a window title from this application."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
             } else if openWindowSamples[identifier] == nil {
-                Text("Open a window in this application, then refresh to use its window title here.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Text(
+                    "Open a window in this application, then refresh to use its window title here."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
             if let sample = sampleTitles[identifier], !sample.isEmpty {
                 Text("Result: \(WindowTitleProcessing.process(sample, using: rules))")
@@ -647,6 +657,23 @@ struct ApplicationSettingsView: View {
                     Text(appVersion)
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
+                }
+                Divider()
+                VStack(alignment: .leading, spacing: 6) {
+                    Link(
+                        "Nameplate on GitHub",
+                        destination: URL(string: "https://github.com/prnvbn/Nameplate")!)
+                    Text("Enjoying Nameplate? Drop a star on GitHub.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    Link(
+                        "Report a bug or request a feature",
+                        destination: URL(string: "https://github.com/prnvbn/Nameplate/issues")!)
+                    Text("Share bugs and feature requests on the GitHub issues page.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
                 }
             }
         }

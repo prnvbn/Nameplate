@@ -27,20 +27,10 @@ struct AccessibilitySettingsCard: View {
             .foregroundStyle(.secondary)
 
             if !accessibility.isGranted {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("1. Open System Settings using the button below.")
-                    Text(
-                        "2. Turn on Nameplate in Privacy & Security → \(AccessibilityAccess.settingsPaneName)."
-                    )
-                    Text("3. Return here. Nameplate checks access automatically.")
-                }
-                .font(.callout)
-
                 Button("Open \(AccessibilityAccess.settingsPaneName) Settings") {
                     accessibility.request()
                 }
                 .buttonStyle(.borderedProminent)
-
             }
         }
         .onAppear { accessibility.refresh() }
