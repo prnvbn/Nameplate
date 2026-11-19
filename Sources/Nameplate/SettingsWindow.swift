@@ -2,7 +2,6 @@ import AppKit
 import SwiftUI
 
 private let selectedApplicationsDefaultsKey = "selectedApplicationBundleIdentifiers"
-private let allApplicationsDefaultsKey = "enableForAllApplications"
 
 private let appVersion: String = {
     if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
@@ -16,16 +15,6 @@ private let appVersion: String = {
 
 @MainActor
 enum SelectedApplications {
-    static var allApplicationsEnabled: Bool {
-        get { UserDefaults.standard.bool(forKey: allApplicationsDefaultsKey) }
-        set { UserDefaults.standard.set(newValue, forKey: allApplicationsDefaultsKey) }
-    }
-
-    static var activeBundleIdentifiers: [String] {
-        guard allApplicationsEnabled else { return bundleIdentifiers }
-        return Array(Set(NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier)))
-    }
-
     static var bundleIdentifiers: [String] {
         if let identifiers = UserDefaults.standard.stringArray(
             forKey: selectedApplicationsDefaultsKey)
@@ -93,7 +82,6 @@ struct ApplicationSettingsView: View {
     @ObservedObject private var accessibility = AccessibilityAccess.shared
     @State private var installedApps = InstalledApplications.scan()
     @State private var selectedIdentifiers = SelectedApplications.bundleIdentifiers
-    @State private var allApplicationsEnabled = SelectedApplications.allApplicationsEnabled
     @State private var titleRulesByApp = WindowTitleProcessing.rulesByApp
     @State private var sampleTitles: [String: String] = [:]
     @State private var openWindowSamples: [String: String] = [:]
@@ -195,7 +183,7 @@ struct ApplicationSettingsView: View {
                     }
                     .disabled(!LaunchAtLogin.isPackagedApp)
                     if !LaunchAtLogin.isPackagedApp {
-                        Text("Available when Nameplate is opened from the built app bundle.")
+                        Text("Available when you open the built Nameplate application.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     } else if LaunchAtLogin.requiresApproval {
@@ -241,41 +229,19 @@ struct ApplicationSettingsView: View {
 
     private var applicationsPage: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text("Choose which apps show window titles in Mission Control.")
+            Text("Choose which applications show nameplates in Mission Control.")
                 .foregroundStyle(.secondary)
-            settingsCard {
-                Toggle(
-                    isOn: Binding(
-                        get: { allApplicationsEnabled },
-                        set: {
-                            allApplicationsEnabled = $0
-                            SelectedApplications.allApplicationsEnabled = $0
-                            onChange()
-                        }
-                    )
-                ) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Enable for all applications")
-                            .fontWeight(.medium)
-                        Text("Show nameplates for windows from every running application.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
             settingsCard {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Applications").font(.headline)
-                    Text(
-                        allApplicationsEnabled
-                            ? "All running apps show nameplates. Keep selections and title rules here for individual apps."
-                            : "Select apps for nameplates and edit their title rules below."
-                    )
+                    Text("Select applications for nameplates and edit their window title rules below.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    TextField("Search installed apps", text: $search)
+                    TextField("Search installed applications", text: $search)
                         .textFieldStyle(.roundedBorder)
                     List(filteredIdentifiers, id: \.self) { identifier in
+                        let applicationName = installedApps.first { $0.bundleIdentifier == identifier }?.name ?? identifier
+                        let rulesAction = expandedTitleProcessing.contains(identifier) ? "Hide rules" : "Edit rules"
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
                                 Button {
@@ -300,7 +266,7 @@ struct ApplicationSettingsView: View {
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityLabel(
-                                    "\(identifier), \(selectedIdentifiers.contains(identifier) ? "Selected" : "Not selected")"
+                                    "\(applicationName), \(selectedIdentifiers.contains(identifier) ? "Selected" : "Not selected")"
                                 )
                                 Button {
                                     if expandedTitleProcessing.contains(identifier) {
@@ -310,15 +276,12 @@ struct ApplicationSettingsView: View {
                                         refreshOpenWindowSample(for: identifier)
                                     }
                                 } label: {
-                                    Text(
-                                        expandedTitleProcessing.contains(identifier)
-                                            ? "Hide rules" : "Edit rules"
-                                    )
+                                    Text(rulesAction)
                                     .font(.caption)
                                 }
                                 .buttonStyle(.borderless)
-                                .help("Title processing for \(identifier)")
-                                .accessibilityLabel("Title processing for \(identifier)")
+                                .help("\(rulesAction) for \(applicationName)")
+                                .accessibilityLabel("\(rulesAction) for \(applicationName)")
                             }
                             if expandedTitleProcessing.contains(identifier) {
                                 titleRuleEditor(for: identifier)
@@ -339,7 +302,7 @@ struct ApplicationSettingsView: View {
                         TextField("Or enter a bundle identifier", text: $manualIdentifier)
                             .textFieldStyle(.roundedBorder)
                             .onSubmit { addManualIdentifier() }
-                        Button("Add App") { addManualIdentifier() }
+                        Button("Add application") { addManualIdentifier() }
                             .disabled(
                                 manualIdentifier.trimmingCharacters(in: .whitespacesAndNewlines)
                                     .isEmpty)
@@ -476,11 +439,11 @@ struct ApplicationSettingsView: View {
             )
             .textFieldStyle(.roundedBorder)
             if !accessibility.isGranted {
-                Text("Allow Accessibility access in General settings, then refresh to use a window title from this app.")
+                Text("Allow Accessibility access in General settings, then refresh to use a window title from this application.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else if openWindowSamples[identifier] == nil {
-                Text("Open a window in this app, then refresh to use its title here.")
+                Text("Open a window in this application, then refresh to use its window title here.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -551,7 +514,7 @@ struct ApplicationSettingsView: View {
                     Text("Preview").font(.headline)
                     nameplatePreview
                     HStack {
-                        Text("Plate size")
+                        Text("Nameplate size")
                         Slider(value: $plateScale, in: 0.5...2, step: 0.05)
                             .onChange(of: plateScale) { _, value in
                                 NameplatePreset.plateScale = value
@@ -623,7 +586,7 @@ struct ApplicationSettingsView: View {
                     .monospacedDigit()
                     .frame(width: 42, alignment: .trailing)
             }
-            ColorPicker("Text color", selection: $basicTextColor, supportsOpacity: false)
+            ColorPicker("Window title color", selection: $basicTextColor, supportsOpacity: false)
                 .onChange(of: basicTextColor) { _, value in
                     NameplatePreset.basicTextColor = NSColor(value)
                     onChange()

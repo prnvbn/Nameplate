@@ -45,8 +45,8 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
 
     var description: String {
         switch self {
-        case .basic: "Compact dark label with macOS system type"
-        case .accentRail: "Dark label with a customizable color strip"
+        case .basic: "Compact dark nameplate with macOS system type"
+        case .accentRail: "Dark nameplate with a customizable color strip"
         case .stickyNote: "Note with a customizable paper color and soft shadow"
         case .licensePlate: "Ivory face, bold lettering, and a dark border"
         }

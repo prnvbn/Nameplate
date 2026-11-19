@@ -21,7 +21,7 @@ struct AccessibilitySettingsCard: View {
             Text(
                 accessibility.isGranted
                     ? "Nameplate can read window titles in Mission Control"
-                    : "Nameplate needs Accessibility access to read window titles and place labels in Mission Control. Labels cannot appear until you allow access."
+                    : "Nameplate needs Accessibility access to read window titles and place nameplates in Mission Control. Nameplates cannot appear until you allow access."
             )
             .font(.callout)
             .foregroundStyle(.secondary)
