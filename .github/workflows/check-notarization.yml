@@ -1,0 +1,53 @@
+name: Check notarization
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_run_id:
+        description: Release run ID, empty checks the latest release run on main
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  check:
+    name: Check Apple submission status
+    runs-on: xcode-27
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select release run
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_RUN_ID: ${{ inputs.release_run_id }}
+        run: |
+          run_id="$RELEASE_RUN_ID"
+          if [[ -z "$run_id" ]]; then
+            run_id=$(gh run list --workflow publish-release.yml --branch main --limit 1 --json databaseId --jq '.[0].databaseId')
+          fi
+          [[ "$run_id" =~ ^[0-9]+$ ]] || { echo 'No release run found. Supply a release run ID.' >&2; exit 1; }
+          path=$(gh api "repos/$GH_REPO/actions/runs/$run_id" --jq .path)
+          test "$path" = .github/workflows/publish-release.yml || {
+            echo 'Select a run of Prepare and publish release.' >&2
+            exit 1
+          }
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "Release run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$run_id" >> "$GITHUB_STEP_SUMMARY"
+      - name: Download saved submission
+        uses: actions/download-artifact@v4
+        with:
+          name: release-submission
+          path: submission
+          run-id: ${{ steps.release.outputs.run_id }}
+          github-token: ${{ github.token }}
+      - name: Check status without finalizing
+        env:
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: bash scripts/notarize-release.sh status submission/notarization.json

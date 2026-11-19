@@ -23,6 +23,7 @@ jobs:
       contents: write
     outputs:
       version: ${{ steps.version.outputs.value }}
+      submission_id: ${{ steps.notarization.outputs.submission_id }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -71,6 +72,7 @@ jobs:
       - name: Build, sign, and package
         run: make release
       - name: Submit to Apple
+        id: notarization
         env:
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
