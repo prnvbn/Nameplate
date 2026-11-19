@@ -12,18 +12,20 @@ let package = Package(
         .executableTarget(
             name: "Nameplate",
             path: ".",
-            exclude: ["Assets", "Tests", "Makefile", "scripts", "RELEASING.md", "README.md", "LICENSE", ".github", "dist"],
+            exclude: [
+                "Assets", "Tests", "Makefile", "scripts", "README.md", "LICENSE", ".github", "dist",
+            ],
             sources: ["Sources/Nameplate"],
             resources: [.copy("version.txt"), .process("AppResources")],
             swiftSettings: [
-                .enableUpcomingFeature("ApproachableConcurrency"),
+                .enableUpcomingFeature("ApproachableConcurrency")
             ],
         ),
         .testTarget(
             name: "NameplateTests",
             dependencies: ["Nameplate"],
             swiftSettings: [
-                .enableUpcomingFeature("ApproachableConcurrency"),
+                .enableUpcomingFeature("ApproachableConcurrency")
             ],
         ),
     ]
