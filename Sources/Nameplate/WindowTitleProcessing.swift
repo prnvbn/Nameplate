@@ -7,6 +7,10 @@ struct WindowTitleRule: Codable, Equatable, Identifiable {
         case removeAfter = "Remove after"
         case replace = "Replace text"
         case regexReplace = "Replace regex"
+
+        var displayName: String {
+            self == .removeAfter ? "Remove separator and following text" : rawValue
+        }
     }
 
     var id = UUID()

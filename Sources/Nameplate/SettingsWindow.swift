@@ -90,6 +90,7 @@ struct ApplicationSettingsView: View {
     }
 
     let onChange: () -> Void
+    @ObservedObject private var accessibility = AccessibilityAccess.shared
     @State private var installedApps = InstalledApplications.scan()
     @State private var selectedIdentifiers = SelectedApplications.bundleIdentifiers
     @State private var allApplicationsEnabled = SelectedApplications.allApplicationsEnabled
@@ -382,15 +383,15 @@ struct ApplicationSettingsView: View {
                                     updateRule(identifier, id: rule.id, \.kind, to: kind)
                                 } label: {
                                     if rule.kind == kind {
-                                        Label(kind.rawValue, systemImage: "checkmark")
+                                        Label(kind.displayName, systemImage: "checkmark")
                                     } else {
-                                        Text(kind.rawValue)
+                                        Text(kind.displayName)
                                     }
                                 }
                             }
                         } label: {
                             HStack {
-                                Text(rule.kind.rawValue)
+                                Text(rule.kind.displayName)
                                 Spacer()
                                 Image(systemName: "chevron.up.chevron.down")
                                     .font(.caption)
@@ -410,7 +411,12 @@ struct ApplicationSettingsView: View {
                             RoundedRectangle(cornerRadius: 6)
                                 .stroke(Color.secondary.opacity(0.25), lineWidth: 1)
                         )
-                        .accessibilityLabel("Action: \(rule.kind.rawValue)")
+                        .accessibilityLabel("Action: \(rule.kind.displayName)")
+                    }
+                    if rule.kind == .removeAfter {
+                        Text("Removes the last matching separator and all text after it.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                     TextField(
                         rule.kind == .removeAfter ? "Separator, e.g.  — " : "Find",
@@ -469,7 +475,11 @@ struct ApplicationSettingsView: View {
                 )
             )
             .textFieldStyle(.roundedBorder)
-            if openWindowSamples[identifier] == nil {
+            if !accessibility.isGranted {
+                Text("Allow Accessibility access in General settings, then refresh to use a window title from this app.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else if openWindowSamples[identifier] == nil {
                 Text("Open a window in this app, then refresh to use its title here.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
