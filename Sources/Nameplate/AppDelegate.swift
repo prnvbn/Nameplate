@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     ) {
         print("Nameplate launched")
         NSApp.setActivationPolicy(.accessory)
+        AccessibilityAccess.shared.startMonitoring()
 
         startMissionControlMonitoring()
     }
@@ -52,13 +53,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         refreshMissionControlTitles()
     }
 
-    func openSettings() {
+    func openSettings(showAccessibilitySetup: Bool = false) {
         if settingsWindow == nil {
             settingsWindow = SettingsWindow { [weak self] in
                 self?.settingsDidChange()
             }
         }
         settingsWindow?.present()
+        if showAccessibilitySetup {
+            NotificationCenter.default.post(
+                name: SettingsWindow.accessibilitySetupRequested, object: nil)
+        }
     }
 
     func quitNameplate() {

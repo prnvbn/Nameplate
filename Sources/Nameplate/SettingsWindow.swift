@@ -45,6 +45,9 @@ enum SelectedApplications {
 
 @MainActor
 final class SettingsWindow: NSWindowController {
+    static let accessibilitySetupRequested = Notification.Name(
+        "NameplateAccessibilitySetupRequested")
+
     init(onChange: @escaping () -> Void) {
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 850, height: 610),
@@ -104,7 +107,6 @@ struct ApplicationSettingsView: View {
     @State private var stickyNoteColor = Color(nsColor: NameplatePreset.stickyNoteColor)
     @State private var page: Page? = .general
     @State private var launchAtLogin = LaunchAtLogin.isEnabled
-    @State private var accessibilityGranted = AccessibilityAccess.isGranted
     @State private var launchAtLoginError: String?
 
     private var filteredIdentifiers: [String] {
@@ -151,6 +153,11 @@ struct ApplicationSettingsView: View {
             .background(Color(nsColor: .windowBackgroundColor))
         }
         .frame(minWidth: 720, minHeight: 520)
+        .onReceive(
+            NotificationCenter.default.publisher(for: SettingsWindow.accessibilitySetupRequested)
+        ) { _ in
+            page = .general
+        }
         .alert(
             "Could not change Launch at Login",
             isPresented: Binding(
@@ -167,24 +174,7 @@ struct ApplicationSettingsView: View {
     private var generalPage: some View {
         VStack(alignment: .leading, spacing: 20) {
             settingsCard {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Text("Accessibility Access").fontWeight(.medium)
-                        Spacer()
-                        Label(accessibilityGranted ? "Granted" : "Required",
-                              systemImage: accessibilityGranted ? "checkmark.circle.fill" : "exclamationmark.circle")
-                            .foregroundStyle(accessibilityGranted ? Color.green : Color.orange)
-                            .font(.caption)
-                    }
-                    Text(accessibilityGranted
-                         ? "Nameplate can read window titles in Mission Control."
-                         : "Allow Nameplate in Privacy & Security → Accessibility to show window titles.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    if !accessibilityGranted {
-                        Button("Open Accessibility Settings") { AccessibilityAccess.request() }
-                    }
-                }
+                AccessibilitySettingsCard()
             }
             settingsCard {
                 VStack(alignment: .leading, spacing: 12) {
@@ -221,10 +211,6 @@ struct ApplicationSettingsView: View {
         }
         .onAppear {
             launchAtLogin = LaunchAtLogin.isEnabled
-            accessibilityGranted = AccessibilityAccess.isGranted
-        }
-        .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
-            accessibilityGranted = AccessibilityAccess.isGranted
         }
     }
 
@@ -312,7 +298,9 @@ struct ApplicationSettingsView: View {
                                     .contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
-                                .accessibilityLabel("\(identifier), \(selectedIdentifiers.contains(identifier) ? "Selected" : "Not selected")")
+                                .accessibilityLabel(
+                                    "\(identifier), \(selectedIdentifiers.contains(identifier) ? "Selected" : "Not selected")"
+                                )
                                 Button {
                                     if expandedTitleProcessing.contains(identifier) {
                                         expandedTitleProcessing.remove(identifier)
@@ -651,8 +639,10 @@ struct ApplicationSettingsView: View {
                             .frame(width: 28, height: 28)
                             .overlay(Circle().strokeBorder(Color.black.opacity(0.12), lineWidth: 1))
                             .padding(3)
-                            .overlay(Circle().strokeBorder(isSelected ? Color.accentColor : .clear,
-                                                           lineWidth: 2))
+                            .overlay(
+                                Circle().strokeBorder(
+                                    isSelected ? Color.accentColor : .clear,
+                                    lineWidth: 2))
                     }
                     .buttonStyle(.plain)
                     .help(paper.id)
