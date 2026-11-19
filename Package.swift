@@ -13,7 +13,8 @@ let package = Package(
             name: "Nameplate",
             path: ".",
             exclude: [
-                "Assets", "Tests", "Makefile", "scripts", "README.md", "LICENSE", ".github", "dist",
+                "Assets", "Tests", "Makefile", "scripts", "README.md", "LICENSE",
+                ".github", "dist",
             ],
             sources: ["Sources/Nameplate"],
             resources: [.copy("version.txt"), .process("AppResources")],

@@ -1,0 +1,176 @@
+name: Prepare and publish release
+run-name: Release from ${{ github.ref_name }}
+
+on:
+  push:
+    branches: [main]
+    paths: [version.txt]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nameplate-release-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Build and submit
+    runs-on: xcode-27
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Read version
+        id: version
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          test "$REF" = refs/heads/main || { echo 'Release from main only.' >&2; exit 1; }
+          version=$(tr -d '\n' < version.txt)
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+            echo 'Expected version.txt to contain MAJOR.MINOR.PATCH.' >&2
+            exit 1
+          }
+          test "$(uname -m)" = arm64
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+      - name: Create or validate version tag
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          tag="v$VERSION"
+          git fetch --tags origin
+          if git rev-parse --verify "refs/tags/$tag" >/dev/null 2>&1; then
+            test "$(git rev-parse "$tag^{commit}")" = "$(git rev-parse HEAD)" || {
+              echo 'Version tag already belongs to another commit. Bump version.txt.' >&2
+              exit 1
+            }
+          else
+            git tag "$tag" HEAD
+            git push origin "refs/tags/$tag"
+          fi
+          if state=$(gh release view "$tag" --json isPrerelease --jq .isPrerelease 2>/dev/null); then
+            test "$state" = true || { echo 'This version is already stable. Bump version.txt.' >&2; exit 1; }
+          fi
+      - name: Install DMG tool
+        run: brew install create-dmg
+      - name: Configure release signing
+        env:
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: bash scripts/configure-release-signing.sh
+      - name: Build, sign, and package
+        run: make release
+      - name: Submit to Apple
+        env:
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          VERSION: ${{ steps.version.outputs.value }}
+        run: bash scripts/notarize-release.sh submit "dist/Nameplate-$VERSION-macos-arm64.dmg" dist/notarization.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-submission
+          overwrite: true
+          path: |
+            dist/*.dmg
+            dist/*.sha256
+            dist/notarization.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Create prerelease awaiting notarization
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          tag="v$VERSION"
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            cat > "$RUNNER_TEMP/release-notes.md" <<'NOTES'
+          <!-- nameplate-notarization:start -->
+          > Awaiting Apple notarization. Downloads will be attached after approval and finalization.
+          <!-- nameplate-notarization:end -->
+
+          ## Release notes
+
+          Add release notes here before approving Finalize release.
+          NOTES
+            gh release create "$tag" --verify-tag --prerelease \
+              --title "Nameplate $VERSION" --notes-file "$RUNNER_TEMP/release-notes.md"
+          fi
+          echo "Prerelease: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$tag" >> "$GITHUB_STEP_SUMMARY"
+          echo 'Edit the release notes, then approve the release environment when ready. If Apple is still processing, re-run failed jobs later.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Remove temporary signing keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/nameplate-signing.keychain-db" 2>/dev/null || true
+
+  finalize:
+    name: Finalize release
+    needs: prepare
+    runs-on: xcode-27
+    timeout-minutes: 15
+    environment: release
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ needs.prepare.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-submission
+          path: dist
+      - name: Check notarization and staple the original DMG
+        env:
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: bash scripts/notarize-release.sh finalize "dist/Nameplate-$VERSION-macos-arm64.dmg" dist/notarization.json
+      - name: Publish stable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          tag="v$VERSION"
+          git fetch --force origin "refs/tags/$tag:refs/tags/$tag"
+          test "$(git rev-parse "$tag^{commit}")" = "$(git rev-parse HEAD)" || {
+            echo 'Release tag moved since this build. Refusing to publish.' >&2
+            exit 1
+          }
+          state=$(gh release view "$tag" --json isPrerelease --jq .isPrerelease)
+          if [[ "$state" == false ]]; then
+            echo "Release $tag is already stable; leaving it unchanged."
+            exit 0
+          fi
+          gh release upload "$tag" "dist/Nameplate-$VERSION-macos-arm64.dmg" --clobber
+          gh release view "$tag" --json body --jq .body > "$RUNNER_TEMP/release-notes.md"
+          python3 - "$RUNNER_TEMP/release-notes.md" <<'PYTHON'
+          import pathlib, re, sys
+          path = pathlib.Path(sys.argv[1])
+          notes = path.read_text()
+          notes = re.sub(r'<!-- nameplate-notarization:start -->.*?<!-- nameplate-notarization:end -->\n?', '', notes, flags=re.DOTALL)
+          path.write_text(notes)
+          PYTHON
+          gh release edit "$tag" --prerelease=false --latest \
+            --notes-file "$RUNNER_TEMP/release-notes.md"
+
+  homebrew:
+    name: Update Homebrew
+    needs: finalize
+    uses: ./.github/workflows/update-homebrew-cask.yml
+    with:
+      version: ${{ needs.finalize.outputs.version }}
+    secrets: inherit

@@ -9,20 +9,21 @@ VERSION ?= $(shell tr -d '\n' < version.txt)
 BUILD_DIR = $(shell swift build -c release --show-bin-path)
 DIST_DIR := dist
 APP := $(DIST_DIR)/$(APP_NAME).app
-ZIP := $(DIST_DIR)/$(APP_NAME)-$(VERSION)-macos-arm64.zip
 DMG := $(DIST_DIR)/$(APP_NAME)-$(VERSION)-macos-arm64.dmg
 DMG_STAGE := $(DIST_DIR)/dmg-stage
 
-.PHONY: test release clean-release
+.PHONY: test app package release clean-release
 
 test:
 	swift test
 
-release: test
+release: app
+	$(MAKE) package
+
+app: test
 	@test -n "$(VERSION)" || (echo "VERSION is required" >&2; exit 1)
-	@command -v create-dmg >/dev/null || (echo "Install create-dmg with: brew install create-dmg" >&2; exit 1)
 	swift build -c release --product $(APP_NAME)
-	rm -rf "$(APP)" "$(ZIP)" "$(DMG)" "$(DMG_STAGE)"
+	rm -rf "$(APP)" "$(DMG)" "$(DMG_STAGE)"
 	mkdir -p "$(APP)/Contents/MacOS" "$(APP)/Contents/Resources"
 	cp "$(BUILD_DIR)/$(APP_NAME)" "$(APP)/Contents/MacOS/$(APP_NAME)"
 	cp "Assets/Nameplate.icns" "$(APP)/Contents/Resources/Nameplate.icns"
@@ -44,13 +45,11 @@ release: test
 		codesign --force --deep --options runtime --timestamp $(SIGNING_KEYCHAIN_FLAG) --sign "$(SIGNING_IDENTITY)" "$(APP)"; \
 	fi
 	codesign --verify --deep --strict "$(APP)"
-	@if [ -n "$(NOTARY_KEYCHAIN_PROFILE)" ] && [ "$(SIGNING_IDENTITY)" = "-" ]; then echo "Notarization requires Developer ID signing" >&2; exit 1; fi
-	cd "$(DIST_DIR)" && ditto -c -k --sequesterRsrc --keepParent "$(APP_NAME).app" "$(notdir $(ZIP))"
-	@if [ -n "$(NOTARY_KEYCHAIN_PROFILE)" ]; then \
-		bash scripts/notarize-release.sh "$(ZIP)" "$(APP)"; \
-		rm -f "$(ZIP)"; \
-		cd "$(DIST_DIR)" && ditto -c -k --sequesterRsrc --keepParent "$(APP_NAME).app" "$(notdir $(ZIP))"; \
-	fi
+
+package:
+	@command -v create-dmg >/dev/null || (echo "Install create-dmg with: brew install create-dmg" >&2; exit 1)
+	rm -f "$(DMG)"
+	rm -rf "$(DMG_STAGE)"
 	mkdir -p "$(DMG_STAGE)"
 	ditto "$(APP)" "$(DMG_STAGE)/$(APP_NAME).app"
 	create-dmg \
@@ -62,14 +61,12 @@ release: test
 		--hide-extension "$(APP_NAME).app" \
 		--app-drop-link 450 175 \
 		"$(DMG)" "$(DMG_STAGE)"
-	@if [ -n "$(NOTARY_KEYCHAIN_PROFILE)" ]; then \
+	@if [ "$(SIGNING_IDENTITY)" != "-" ]; then \
 		codesign --timestamp $(SIGNING_KEYCHAIN_FLAG) --sign "$(SIGNING_IDENTITY)" "$(DMG)"; \
-		bash scripts/notarize-release.sh "$(DMG)" "$(DMG)"; \
-		spctl --assess --type execute --verbose "$(APP)"; \
 	fi
 	hdiutil verify "$(DMG)"
 	rm -rf "$(DMG_STAGE)"
-	@echo "Built $(ZIP) and $(DMG)"
+	@echo "Built $(DMG)"
 
 clean-release:
 	rm -rf "$(DIST_DIR)"
