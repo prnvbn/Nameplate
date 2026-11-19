@@ -40,7 +40,14 @@ if [[ "$operation" == submit ]]; then
       echo "$submission"
       echo '```'
       echo
-      echo 'Use Actions > Check notarization to check the status without finalizing.'
+      if [[ -n "${GITHUB_REPOSITORY:-}" ]]; then
+        echo "[Check notarization](${GITHUB_SERVER_URL:-https://github.com}/$GITHUB_REPOSITORY/actions/workflows/check-notarization.yml) — click **Run workflow** and leave the input empty to check the newest release."
+        echo
+        echo 'Or check this exact submission from your terminal:'
+        echo '```sh'
+        echo "gh workflow run check-notarization.yml --repo $GITHUB_REPOSITORY --ref main -f submission_id=$submission"
+        echo '```'
+      fi
       echo
     } >> "$GITHUB_STEP_SUMMARY"
   fi
