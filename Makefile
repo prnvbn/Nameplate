@@ -1,6 +1,10 @@
+SHELL := /bin/bash
+.SHELLFLAGS := -eu -o pipefail -c
+
 APP_NAME := Nameplate
 BUNDLE_ID ?= com.pranavbansal.Nameplate
 SIGNING_IDENTITY ?= -
+SIGNING_KEYCHAIN_FLAG = $(if $(SIGNING_KEYCHAIN),--keychain "$(SIGNING_KEYCHAIN)",)
 VERSION ?= $(shell tr -d '\n' < version.txt)
 BUILD_DIR = $(shell swift build -c release --show-bin-path)
 DIST_DIR := dist
@@ -37,10 +41,16 @@ release: test
 	@if [ "$(SIGNING_IDENTITY)" = "-" ]; then \
 		codesign --force --deep --sign - "$(APP)"; \
 	else \
-		codesign --force --deep --options runtime --timestamp --sign "$(SIGNING_IDENTITY)" "$(APP)"; \
+		codesign --force --deep --options runtime --timestamp $(SIGNING_KEYCHAIN_FLAG) --sign "$(SIGNING_IDENTITY)" "$(APP)"; \
 	fi
 	codesign --verify --deep --strict "$(APP)"
+	@if [ -n "$(NOTARY_KEYCHAIN_PROFILE)" ] && [ "$(SIGNING_IDENTITY)" = "-" ]; then echo "Notarization requires Developer ID signing" >&2; exit 1; fi
 	cd "$(DIST_DIR)" && ditto -c -k --sequesterRsrc --keepParent "$(APP_NAME).app" "$(notdir $(ZIP))"
+	@if [ -n "$(NOTARY_KEYCHAIN_PROFILE)" ]; then \
+		bash scripts/notarize-release.sh "$(ZIP)" "$(APP)"; \
+		rm -f "$(ZIP)"; \
+		cd "$(DIST_DIR)" && ditto -c -k --sequesterRsrc --keepParent "$(APP_NAME).app" "$(notdir $(ZIP))"; \
+	fi
 	mkdir -p "$(DMG_STAGE)"
 	ditto "$(APP)" "$(DMG_STAGE)/$(APP_NAME).app"
 	create-dmg \
@@ -52,6 +62,11 @@ release: test
 		--hide-extension "$(APP_NAME).app" \
 		--app-drop-link 450 175 \
 		"$(DMG)" "$(DMG_STAGE)"
+	@if [ -n "$(NOTARY_KEYCHAIN_PROFILE)" ]; then \
+		codesign --timestamp $(SIGNING_KEYCHAIN_FLAG) --sign "$(SIGNING_IDENTITY)" "$(DMG)"; \
+		bash scripts/notarize-release.sh "$(DMG)" "$(DMG)"; \
+		spctl --assess --type execute --verbose "$(APP)"; \
+	fi
 	hdiutil verify "$(DMG)"
 	rm -rf "$(DMG_STAGE)"
 	@echo "Built $(ZIP) and $(DMG)"
