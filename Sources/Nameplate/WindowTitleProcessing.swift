@@ -10,6 +10,40 @@ struct WindowTitleRule: Codable, Equatable, Identifiable {
         case addSuffix = "Add suffix"
         case removeSuffix = "Remove suffix"
 
+        var editorLabel: String {
+            self == .removeAfter ? "Remove ending" : displayName
+        }
+
+        var patternLabel: String {
+            switch self {
+            case .removeAfter: "Separator"
+            case .replace, .regexReplace: "Find"
+            case .addSuffix, .removeSuffix: "Suffix"
+            }
+        }
+
+        var patternPlaceholder: String {
+            switch self {
+            case .removeAfter: "e.g. —"
+            case .replace, .regexReplace: "Find text"
+            case .addSuffix, .removeSuffix: "Suffix text"
+            }
+        }
+
+        var patternFieldWidth: Double {
+            self == .removeAfter ? 100 : 180
+        }
+
+        var explanation: String? {
+            self == .removeAfter
+                ? "Removes the last matching separator and everything after it."
+                : nil
+        }
+
+        var usesReplacement: Bool {
+            self == .replace || self == .regexReplace
+        }
+
         var displayName: String {
             self == .removeAfter ? "Remove separator and following text" : rawValue
         }
@@ -42,6 +76,13 @@ struct WindowTitleRule: Codable, Equatable, Identifiable {
                 withTemplate: replacement
             )
         }
+    }
+
+    func suggestedSeparator(for sample: String) -> String? {
+        guard kind == .removeAfter, !sample.isEmpty, !sample.contains(pattern) else {
+            return nil
+        }
+        return WindowTitleProcessing.separator(in: sample)
     }
 
     var validationError: String? {

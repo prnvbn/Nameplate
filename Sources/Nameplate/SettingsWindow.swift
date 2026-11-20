@@ -548,7 +548,7 @@ struct ApplicationSettingsView: View {
                         Spacer(minLength: 12)
                         Picker("Action", selection: ruleBinding(identifier, rule.id, \.kind)) {
                             ForEach(WindowTitleRule.Kind.allCases, id: \.self) { kind in
-                                Text(kind == .removeAfter ? "Remove ending" : kind.displayName)
+                                Text(kind.editorLabel)
                                     .tag(kind)
                             }
                         }
@@ -559,29 +559,24 @@ struct ApplicationSettingsView: View {
                     .padding(.vertical, 4)
                     Divider().padding(.vertical, 2)
                     HStack(spacing: 16) {
-                        Text(rule.kind == .removeAfter ? "Separator" :
-                            (rule.kind == .addSuffix || rule.kind == .removeSuffix ? "Suffix" : "Find"))
+                        Text(rule.kind.patternLabel)
                         Spacer(minLength: 0)
                         TextField(
-                            rule.kind == .removeAfter ? "e.g. —" :
-                                (rule.kind == .addSuffix || rule.kind == .removeSuffix ? "Suffix text" : "Find text"),
+                            rule.kind.patternPlaceholder,
                             text: ruleBinding(identifier, rule.id, \.pattern)
                         )
                         .modifier(TitleEditorFieldStyle())
-                        .frame(maxWidth: rule.kind == .removeAfter ? 100 : 180)
+                        .frame(maxWidth: rule.kind.patternFieldWidth)
                     }
-                    if rule.kind == .removeAfter {
-                        Text("Removes the last matching separator and everything after it.")
+                    if let explanation = rule.kind.explanation {
+                        Text(explanation)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                             .padding(.top, 4)
                     }
-                    if rule.kind == .removeAfter,
-                        let sample = sampleTitles[identifier],
-                        !sample.isEmpty,
-                        !sample.contains(rule.pattern),
-                        let separator = WindowTitleProcessing.separator(in: sample)
+                    if let sample = sampleTitles[identifier],
+                        let separator = rule.suggestedSeparator(for: sample)
                     {
                         HStack(spacing: 6) {
                             Text("This separator doesn’t match the sample title.")
@@ -593,7 +588,7 @@ struct ApplicationSettingsView: View {
                         }
                         .font(.caption)
                     }
-                    if rule.kind == .replace || rule.kind == .regexReplace {
+                    if rule.kind.usesReplacement {
                         TextField(
                             "Replace with (empty removes it)",
                             text: ruleBinding(identifier, rule.id, \.replacement)
