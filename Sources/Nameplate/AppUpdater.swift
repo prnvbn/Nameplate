@@ -14,7 +14,8 @@ final class AppUpdater: ObservableObject {
     func start() {
         // SwiftPM executables and tests are not installable application bundles.
         guard controller == nil, Bundle.main.bundleURL.pathExtension == "app",
-              Bundle.main.object(forInfoDictionaryKey: "SUPublicEDKey") != nil else { return }
+            Bundle.main.object(forInfoDictionaryKey: "SUPublicEDKey") != nil
+        else { return }
         let controller = SPUStandardUpdaterController(
             startingUpdater: false, updaterDelegate: nil, userDriverDelegate: nil)
         self.controller = controller

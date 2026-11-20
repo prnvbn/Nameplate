@@ -321,6 +321,7 @@ struct ApplicationSettingsView: View {
                 Spacer()
                 Button {
                     search = ""
+                    installedApps = InstalledApplications.scan()
                     showingApplicationPicker = true
                 } label: {
                     Label("Add application", systemImage: "plus")

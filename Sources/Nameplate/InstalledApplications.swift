@@ -11,6 +11,7 @@ enum InstalledApplications {
         let fileManager = FileManager.default
         let folders = [URL(fileURLWithPath: "/Applications"),
                        URL(fileURLWithPath: "/System/Applications"),
+                       URL(fileURLWithPath: "/System/Cryptexes/App/System/Applications"),
                        fileManager.homeDirectoryForCurrentUser.appendingPathComponent("Applications")]
         var appsByID: [String: InstalledApplication] = [:]
 
@@ -30,6 +31,15 @@ enum InstalledApplications {
                     .first { !$0.isEmpty } ?? identifier
                 appsByID[identifier] = InstalledApplication(name: name, bundleIdentifier: identifier, url: url)
             }
+        }
+        // Finder lives outside the application folders. Ask Launch Services for
+        // its location so discovery does not depend on its CoreServices path.
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.finder"),
+           let bundle = Bundle(url: url), let identifier = bundle.bundleIdentifier {
+            let name = (bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String)
+                ?? (bundle.object(forInfoDictionaryKey: "CFBundleName") as? String)
+                ?? url.deletingPathExtension().lastPathComponent
+            appsByID[identifier] = InstalledApplication(name: name, bundleIdentifier: identifier, url: url)
         }
         return appsByID.values.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
