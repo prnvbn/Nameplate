@@ -7,6 +7,8 @@ struct WindowTitleRule: Codable, Equatable, Identifiable {
         case removeAfter = "Remove after"
         case replace = "Replace text"
         case regexReplace = "Replace regex"
+        case addSuffix = "Add suffix"
+        case removeSuffix = "Remove suffix"
 
         var displayName: String {
             self == .removeAfter ? "Remove separator and following text" : rawValue
@@ -25,6 +27,11 @@ struct WindowTitleRule: Codable, Equatable, Identifiable {
         case .removeAfter:
             guard let range = title.range(of: pattern, options: .backwards) else { return title }
             return String(title[..<range.lowerBound])
+        case .addSuffix:
+            return title + pattern
+        case .removeSuffix:
+            guard title.hasSuffix(pattern) else { return title }
+            return String(title.dropLast(pattern.count))
         case .replace:
             return title.replacingOccurrences(of: pattern, with: replacement)
         case .regexReplace:

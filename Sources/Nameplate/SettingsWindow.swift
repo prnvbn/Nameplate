@@ -559,10 +559,12 @@ struct ApplicationSettingsView: View {
                     .padding(.vertical, 4)
                     Divider().padding(.vertical, 2)
                     HStack(spacing: 16) {
-                        Text(rule.kind == .removeAfter ? "Separator" : "Find")
+                        Text(rule.kind == .removeAfter ? "Separator" :
+                            (rule.kind == .addSuffix || rule.kind == .removeSuffix ? "Suffix" : "Find"))
                         Spacer(minLength: 0)
                         TextField(
-                            rule.kind == .removeAfter ? "e.g. —" : "Find text",
+                            rule.kind == .removeAfter ? "e.g. —" :
+                                (rule.kind == .addSuffix || rule.kind == .removeSuffix ? "Suffix text" : "Find text"),
                             text: ruleBinding(identifier, rule.id, \.pattern)
                         )
                         .modifier(TitleEditorFieldStyle())
@@ -591,7 +593,7 @@ struct ApplicationSettingsView: View {
                         }
                         .font(.caption)
                     }
-                    if rule.kind != .removeAfter {
+                    if rule.kind == .replace || rule.kind == .regexReplace {
                         TextField(
                             "Replace with (empty removes it)",
                             text: ruleBinding(identifier, rule.id, \.replacement)

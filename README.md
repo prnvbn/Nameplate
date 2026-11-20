@@ -79,6 +79,8 @@ Nameplate lets you process titles as well in case you want to show only the rele
 - **Remove separator and following text** removes the last matching separator and everything after it.
 - **Replace text** replaces exact matches.
 - **Replace regex** replaces regular expression matches.
+- **Add suffix** appends the specified text to the title.
+- **Remove suffix** removes the specified text only when it occurs at the end of the title.
 
 Rules run in order. Leave the replacement empty to remove matches.
 
