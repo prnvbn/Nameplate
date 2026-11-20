@@ -29,8 +29,8 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
 
     case basic
     case accentRail
-    case stickyNote
     case licensePlate
+    case stickyNote
 
     var id: String { rawValue }
 
@@ -97,7 +97,7 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
         }
     }
 
-    private var panelInset: CGFloat {
+    var panelInset: CGFloat {
         switch self {
         case .basic, .accentRail: 12
         case .stickyNote: 24
@@ -132,7 +132,7 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
         set { saveColor(newValue, for: "stickyNoteColor") }
     }
 
-    private static var stickyNoteShade: NSColor {
+    static var stickyNoteShade: NSColor {
         stickyNoteColor.blended(withFraction: 0.14, of: .black) ?? stickyNoteColor
     }
 
@@ -199,208 +199,14 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
         panel.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.screenSaverWindow)))
         panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
 
-        let content = NSView(frame: NSRect(origin: .zero, size: frame.size))
-        panel.contentView = content
-        let contentBounds = NSRect(origin: .zero, size: NSSize(
-            width: frame.width / Self.plateScale, height: frame.height / Self.plateScale))
-        content.bounds = contentBounds
-        // Keep the rounded edge and shadow away from the window's clipping boundary.
-        let plateFrame = contentBounds.insetBy(dx: panelInset, dy: panelInset)
-        let frame = NSRect(origin: .zero, size: plateFrame.size)
-
-        let background = NSView(frame: plateFrame)
-        background.wantsLayer = true
-        switch preset {
-        case .basic:
-            background.layer?.backgroundColor = preset.backgroundColor.cgColor
-            background.layer?.borderColor = NSColor(calibratedWhite: 1, alpha: 0.14).cgColor
-            background.layer?.borderWidth = 0.5
-            background.layer?.shadowColor = NSColor.black.cgColor
-            background.layer?.shadowOpacity = 0.22
-            background.layer?.shadowRadius = 5
-            background.layer?.shadowOffset = CGSize(width: 0, height: -2)
-        case .accentRail:
-            background.layer?.backgroundColor = preset.backgroundColor.cgColor
-            background.layer?.shadowColor = NSColor.black.cgColor
-            background.layer?.shadowOpacity = 0.22
-            background.layer?.shadowRadius = 5
-            background.layer?.shadowOffset = CGSize(width: 0, height: -2)
-            let rail = NSView(frame: NSRect(x: 8, y: 7, width: 5, height: frame.height - 14))
-            rail.wantsLayer = true
-            rail.layer?.backgroundColor = NameplatePreset.accentRailColor.cgColor
-            rail.layer?.cornerRadius = 2.5
-            background.addSubview(rail)
-        case .stickyNote:
-            background.layer?.backgroundColor = preset.backgroundColor.cgColor
-            background.layer?.borderColor = Self.stickyNoteShade.withAlphaComponent(0.45).cgColor
-            background.layer?.borderWidth = 0.5
-            background.layer?.shadowColor = NSColor.black.cgColor
-            background.layer?.shadowOpacity = 0.3
-            background.layer?.shadowRadius = 9
-            background.layer?.shadowOffset = CGSize(width: 2, height: -4)
-            let adhesive = NSView(frame: NSRect(x: 0, y: frame.height - 14,
-                                                 width: frame.width, height: 14))
-            adhesive.wantsLayer = true
-            adhesive.layer?.backgroundColor = Self.stickyNoteShade.withAlphaComponent(0.45).cgColor
-            adhesive.autoresizingMask = [.width, .minYMargin]
-            background.addSubview(adhesive)
-            let fold = CAShapeLayer()
-            let foldPath = CGMutablePath()
-            foldPath.move(to: CGPoint(x: frame.width - 19, y: 0))
-            foldPath.addLine(to: CGPoint(x: frame.width, y: 0))
-            foldPath.addLine(to: CGPoint(x: frame.width, y: 19))
-            foldPath.closeSubpath()
-            fold.path = foldPath
-            fold.fillColor = Self.stickyNoteShade.cgColor
-            background.layer?.addSublayer(fold)
-        case .licensePlate:
-            background.layer?.backgroundColor = preset.backgroundColor.cgColor
-            let face = NSView(frame: background.bounds.insetBy(dx: 3, dy: 3))
-            face.wantsLayer = true
-            face.layer?.backgroundColor =
-                NSColor(calibratedRed: 0.94, green: 0.93, blue: 0.87, alpha: 1).cgColor
-            face.layer?.cornerRadius = 4
-            face.layer?.borderColor = NSColor(calibratedWhite: 0.25, alpha: 1).cgColor
-            face.layer?.borderWidth = 1.5
-            face.autoresizingMask = [.width, .height]
-            background.addSubview(face)
-        }
-        background.layer?.cornerRadius = preset.cornerRadius
-        background.autoresizingMask = [.width, .height]
-        panel.contentView?.addSubview(background)
-
-        switch preset {
-        case .basic, .accentRail:
-            let text = CATextLayer()
-            text.string = NSAttributedString(
-                string: preset.displayText(title),
-                attributes: [.font: preset.font, .foregroundColor: preset.textColor]
-            )
-            text.alignmentMode = .center
-            text.isWrapped = false
-            text.truncationMode = .none
-            text.contentsScale = panel.backingScaleFactor
-            let textHeight = ceil(preset.font.ascender - preset.font.descender) + 2
-            text.frame = CGRect(
-                x: 0, y: (frame.height - textHeight) / 2,
-                width: frame.width, height: textHeight
-            )
-            background.layer?.addSublayer(text)
-        case .stickyNote:
-            let label = NSTextField(wrappingLabelWithString: preset.displayText(title))
-            label.font = preset.font
-            label.textColor = preset.textColor
-            label.alignment = .left
-            label.lineBreakMode = .byWordWrapping
-            label.frame = NSRect(x: 14, y: 16, width: frame.width - 28,
-                                 height: frame.height - 42)
-            label.autoresizingMask = [.width, .height]
-            background.addSubview(label)
-        case .licensePlate:
-            let label = NSTextField(labelWithString: preset.displayText(title))
-            let padding: CGFloat = 12
-            label.textColor = preset.textColor
-            label.font = preset.font
-            label.alignment = .center
-            label.lineBreakMode = .byTruncatingMiddle
-            let labelHeight = label.intrinsicContentSize.height
-            label.frame = NSRect(
-                x: plateFrame.minX + padding,
-                y: plateFrame.minY + (frame.height - labelHeight) / 2,
-                width: frame.width - padding * 2,
-                height: labelHeight
-            )
-            label.autoresizingMask = [.width, .minYMargin, .maxYMargin]
-            panel.contentView?.addSubview(label)
-        }
+        panel.contentView = NameplateContentView(
+            preset: preset, title: title, frame: NSRect(origin: .zero, size: frame.size),
+            scale: Self.plateScale)
         panel.orderFrontRegardless()
         return panel
     }
 
-    @ViewBuilder
-    func previewPlate(_ title: String, compact: Bool = false)
-        -> some View
-    {
-        let preset = self
-        switch preset {
-        case .basic:
-            Text(title)
-                .font(Font(preset.font))
-                .foregroundStyle(Color(nsColor: preset.textColor))
-                .lineLimit(1)
-                .padding(.horizontal, compact ? 12 : 18)
-                .frame(height: compact ? 32 : 36)
-                .background(
-                    Color(nsColor: preset.backgroundColor),
-                    in: RoundedRectangle(cornerRadius: preset.cornerRadius)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: preset.cornerRadius)
-                        .stroke(Color.white.opacity(0.14), lineWidth: 0.5)
-                )
-                .shadow(color: .black.opacity(0.22), radius: 5, y: 2)
-        case .accentRail:
-            HStack(spacing: 10) {
-                RoundedRectangle(cornerRadius: 2.5)
-                    .fill(Color(nsColor: NameplatePreset.accentRailColor))
-                    .frame(width: 5, height: compact ? 17 : 22)
-                Text(title)
-                    .font(Font(preset.font))
-                    .foregroundStyle(Color(nsColor: preset.textColor))
-                    .lineLimit(1)
-            }
-            .padding(.horizontal, compact ? 10 : 12)
-            .frame(height: compact ? 32 : 36)
-            .background(Color(nsColor: preset.backgroundColor),
-                        in: RoundedRectangle(cornerRadius: preset.cornerRadius))
-            .shadow(color: .black.opacity(0.22), radius: 5, y: 2)
-        case .stickyNote:
-            ZStack(alignment: .topLeading) {
-                RoundedRectangle(cornerRadius: preset.cornerRadius)
-                    .fill(Color(nsColor: preset.backgroundColor))
-                Color(nsColor: Self.stickyNoteShade).opacity(0.45)
-                    .frame(height: compact ? 10 : 14)
-                Text(title)
-                    .font(Font(preset.font))
-                    .foregroundStyle(Color(nsColor: preset.textColor))
-                    .multilineTextAlignment(.leading)
-                    .lineLimit(compact ? 2 : 4)
-                    .padding(.horizontal, compact ? 9 : 14)
-                    .padding(.top, compact ? 17 : 26)
-                Path { path in
-                    path.move(to: CGPoint(x: 0, y: 19))
-                    path.addLine(to: CGPoint(x: 19, y: 19))
-                    path.addLine(to: CGPoint(x: 19, y: 0))
-                    path.closeSubpath()
-                }
-                .fill(Color(nsColor: Self.stickyNoteShade))
-                .frame(width: 19, height: 19)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-            }
-            .frame(width: compact ? 80 : 120, height: compact ? 72 : 104)
-            .clipShape(RoundedRectangle(cornerRadius: preset.cornerRadius))
-            .shadow(color: .black.opacity(0.3), radius: 9, x: 2, y: 4)
-        case .licensePlate:
-            Text(preset.displayText(title))
-                .font(
-                    Font(compact ? .monospacedSystemFont(ofSize: 12, weight: .bold) : preset.font)
-                )
-                .foregroundStyle(Color(nsColor: preset.textColor))
-                .lineLimit(1)
-                .padding(.horizontal, compact ? 8 : 12)
-                .frame(height: compact ? 25 : 34)
-                .background(
-                    Color(red: 0.94, green: 0.93, blue: 0.87),
-                    in: RoundedRectangle(cornerRadius: 4)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 4)
-                        .stroke(Color(white: 0.25), lineWidth: 1.5)
-                )
-                .padding(3)
-                .background(
-                    Color(nsColor: preset.backgroundColor),
-                    in: RoundedRectangle(cornerRadius: preset.cornerRadius))
-        }
+    func previewPlate(_ title: String, compact: Bool = false) -> some View {
+        NameplateView(preset: self, title: title, compact: compact)
     }
 }

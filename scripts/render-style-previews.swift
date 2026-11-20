@@ -1,5 +1,5 @@
 // Run from the repository root:
-// swiftc -parse-as-library scripts/render-style-previews.swift Sources/Nameplate/NameplatePreset.swift Sources/Nameplate/MissionControlInspector.swift Sources/Nameplate/WindowTitleProcessing.swift -o /tmp/nameplate-style-previews
+// swiftc -parse-as-library scripts/render-style-previews.swift Sources/Nameplate/NameplatePreset.swift Sources/Nameplate/NameplateView.swift Sources/Nameplate/MissionControlInspector.swift Sources/Nameplate/WindowTitleProcessing.swift -o /tmp/nameplate-style-previews
 // /tmp/nameplate-style-previews
 import AppKit
 import SwiftUI
@@ -8,27 +8,33 @@ import SwiftUI
 struct RenderStylePreviews {
     @MainActor
     static func main() throws {
+        _ = NSApplication.shared
         // Keep documentation previews independent of saved application preferences.
         UserDefaults.standard.setVolatileDomain([
             "basicTextColor": [0.96, 0.96, 0.96],
             "accentRailColor": [214.0 / 255, 245.0 / 255, 156.0 / 255],
             "stickyNoteColor": [1.0, 0.96, 0.70],
         ], forName: UserDefaults.argumentDomain)
-        let directory = URL(fileURLWithPath: "Assets/styles", isDirectory: true)
+        let directory = URL(fileURLWithPath: CommandLine.arguments.dropFirst().first ?? "Assets/styles", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let styles: [(NameplatePreset, String)] = [
             (.basic, "basic"), (.accentRail, "accent-rail"),
             (.stickyNote, "sticky-note"), (.licensePlate, "number-plate"),
         ]
         for (preset, filename) in styles {
-            let preview = preset.previewPlate("Project notes")
+            // ImageRenderer does not draw NSViewRepresentable content.
+            let preview = NSHostingView(rootView: preset.previewPlate("Project notes")
                 .frame(width: 380, height: 200)
                 .background(Color(red: 0.88, green: 0.91, blue: 0.94))
-                .environment(\.colorScheme, .light)
-            let renderer = ImageRenderer(content: preview)
-            renderer.scale = 2
-            guard let image = renderer.cgImage,
-                  let data = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])
+                .environment(\.colorScheme, .light))
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 380, height: 200),
+                                  styleMask: [.borderless], backing: .buffered, defer: false)
+            window.contentView = preview
+            preview.layoutSubtreeIfNeeded()
+            guard let bitmap = preview.bitmapImageRepForCachingDisplay(in: preview.bounds)
+            else { fatalError("Could not allocate image for \(preset.name)") }
+            preview.cacheDisplay(in: preview.bounds, to: bitmap)
+            guard let data = bitmap.representation(using: .png, properties: [:])
             else { fatalError("Could not render \(preset.name)") }
             try data.write(to: directory.appendingPathComponent("\(filename).png"))
         }
