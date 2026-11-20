@@ -48,4 +48,5 @@ for item in ET.parse(feed).findall('channel/item'):
 else:
     raise SystemExit('Appcast is missing the signed release archive; refusing to publish')
 PYTHON
+python3 scripts/refresh_appcast_notes.py --feed "$work/appcast.xml"
 cp "$work/appcast.xml" dist/appcast.xml

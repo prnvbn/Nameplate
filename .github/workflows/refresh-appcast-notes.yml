@@ -21,7 +21,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
-      - name: Copy GitHub release notes into the appcast
+      - name: Embed cumulative GitHub release notes in the appcast
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
