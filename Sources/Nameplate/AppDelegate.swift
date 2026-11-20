@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -6,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let titleOverlay = MissionControlTitleOverlay()
     private var overlayRefreshTimer: Timer?
     private var settingsWindow: SettingsWindow?
+    private var accessibilityObservation: AnyCancellable?
 
     func applicationDidFinishLaunching(
         _ notification: Notification
@@ -14,6 +16,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
         AppUpdater.shared.start()
         AccessibilityAccess.shared.startMonitoring()
+        accessibilityObservation = AccessibilityAccess.shared.$isGranted.sink { [weak self] granted in
+            guard granted, ApplicationSetup.shouldOfferApplications() else { return }
+            ApplicationSetup.markApplicationsPresented()
+            self?.openSettings(showApplications: true)
+        }
         if !AccessibilityAccess.shared.isGranted {
             openSettings(showAccessibilitySetup: true)
         }
@@ -64,13 +71,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         refreshMissionControlTitles()
     }
 
-    func openSettings(showAccessibilitySetup: Bool = false) {
+    func openSettings(showAccessibilitySetup: Bool = false, showApplications: Bool = false) {
         if settingsWindow == nil {
-            settingsWindow = SettingsWindow { [weak self] in
+            settingsWindow = SettingsWindow(showApplications: showApplications) { [weak self] in
                 self?.settingsDidChange()
             }
         }
         settingsWindow?.present()
+        if showApplications {
+            NotificationCenter.default.post(
+                name: SettingsWindow.applicationsSetupRequested, object: nil)
+        }
         if showAccessibilitySetup {
             NotificationCenter.default.post(
                 name: SettingsWindow.accessibilitySetupRequested, object: nil)

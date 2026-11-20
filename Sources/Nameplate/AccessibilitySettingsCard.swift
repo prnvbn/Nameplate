@@ -5,7 +5,7 @@ struct AccessibilitySettingsCard: View {
     @ObservedObject private var accessibility = AccessibilityAccess.shared
 
     var body: some View {
-        Group {
+        VStack(alignment: .leading, spacing: 10) {
             LabeledContent {
                 Label(
                     accessibility.isGranted ? "Granted" : "Action required",

@@ -27,8 +27,16 @@ enum SelectedApplications {
         return []
     }
 
+    static let selectionDidChange = Notification.Name("NameplateApplicationSelectionDidChange")
+
+    static func hasSavedSelection(in defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: selectedApplicationsDefaultsKey) != nil
+            || defaults.object(forKey: "targetBundleIdentifier") != nil
+    }
+
     static func save(_ identifiers: [String]) {
         UserDefaults.standard.set(identifiers, forKey: selectedApplicationsDefaultsKey)
+        NotificationCenter.default.post(name: selectionDidChange, object: nil)
     }
 }
 
@@ -37,7 +45,9 @@ final class SettingsWindow: NSWindowController {
     static let accessibilitySetupRequested = Notification.Name(
         "NameplateAccessibilitySetupRequested")
 
-    init(onChange: @escaping () -> Void) {
+    static let applicationsSetupRequested = Notification.Name("NameplateApplicationsSetupRequested")
+
+    init(showApplications: Bool = false, onChange: @escaping () -> Void) {
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 850, height: 610),
             styleMask: [.titled, .closable, .resizable],
@@ -47,7 +57,8 @@ final class SettingsWindow: NSWindowController {
         window.title = "Nameplate Settings"
         window.minSize = NSSize(width: 720, height: 520)
         window.center()
-        window.contentView = NSHostingView(rootView: ApplicationSettingsView(onChange: onChange))
+        window.contentView = NSHostingView(
+            rootView: ApplicationSettingsView(showApplications: showApplications, onChange: onChange))
         super.init(window: window)
     }
 
@@ -94,6 +105,11 @@ struct ApplicationSettingsView: View {
     @State private var page: Page? = .general
     @State private var launchAtLogin = LaunchAtLogin.isEnabled
     @State private var launchAtLoginError: String?
+
+    init(showApplications: Bool = false, onChange: @escaping () -> Void) {
+        self.onChange = onChange
+        _page = State(initialValue: showApplications ? .applications : .general)
+    }
 
     private var filteredIdentifiers: [String] {
         let identifiers = Set(installedApps.map(\.bundleIdentifier))
@@ -147,10 +163,23 @@ struct ApplicationSettingsView: View {
             .background(Color(nsColor: .windowBackgroundColor))
         }
         .frame(minWidth: 720, minHeight: 520)
+        .onAppear {
+            selectedIdentifiers = SelectedApplications.bundleIdentifiers
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(for: SelectedApplications.selectionDidChange)
+        ) { _ in
+            selectedIdentifiers = SelectedApplications.bundleIdentifiers
+        }
         .onReceive(
             NotificationCenter.default.publisher(for: SettingsWindow.accessibilitySetupRequested)
         ) { _ in
             page = .general
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(for: SettingsWindow.applicationsSetupRequested)
+        ) { _ in
+            page = .applications
         }
         .alert(
             "Could not change Launch at Login",
@@ -169,6 +198,26 @@ struct ApplicationSettingsView: View {
         Form {
             Section {
                 AccessibilitySettingsCard()
+
+                LabeledContent {
+                    VStack(alignment: .trailing, spacing: 8) {
+                        Label(
+                            selectedIdentifiers.isEmpty
+                                ? "Action required" : "\(selectedIdentifiers.count) selected",
+                            systemImage: selectedIdentifiers.isEmpty
+                                ? "exclamationmark.triangle.fill" : "checkmark.circle.fill"
+                        )
+                        .foregroundStyle(selectedIdentifiers.isEmpty ? Color.orange : Color.green)
+                        Button("Choose Applications…") { page = .applications }
+                    }
+                } label: {
+                    Text("Applications")
+                    Text(
+                        selectedIdentifiers.isEmpty
+                            ? "Select at least one application to show window titles in Mission Control."
+                            : "Nameplates appear only for selected applications."
+                    )
+                }
 
                 Toggle(
                     isOn: Binding(
@@ -256,8 +305,20 @@ struct ApplicationSettingsView: View {
 
     private var applicationsPage: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text("Choose which applications show nameplates in Mission Control.")
-                .foregroundStyle(.secondary)
+            if selectedIdentifiers.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("Choose where Nameplate appears", systemImage: "app.badge.checkmark")
+                        .font(.headline)
+                    Text(
+                        "Select the applications whose window titles you want to see in Mission Control."
+                    )
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                Label(
+                    "Open Mission Control to see your nameplates.", systemImage: "checkmark.circle")
+                    .foregroundStyle(.secondary)
+            }
             settingsCard {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Applications").font(.headline)
