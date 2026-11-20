@@ -52,6 +52,15 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
         }
     }
 
+    func resetAppearance() {
+        switch self {
+        case .basic: UserDefaults.standard.removeObject(forKey: "basicTextColor")
+        case .accentRail: UserDefaults.standard.removeObject(forKey: "accentRailColor")
+        case .stickyNote: UserDefaults.standard.removeObject(forKey: "stickyNoteColor")
+        case .licensePlate: break
+        }
+    }
+
     var backgroundColor: NSColor {
         switch self {
         case .basic: NSColor(calibratedWhite: 0.12, alpha: 1)

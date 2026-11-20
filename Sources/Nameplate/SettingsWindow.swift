@@ -551,24 +551,51 @@ struct ApplicationSettingsView: View {
                             HStack(spacing: 16) {
                                 preset.previewPlate("Window title", compact: true)
                                     .frame(width: 150, alignment: .leading)
+                                    .accessibilityHidden(true)
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text(preset.name).fontWeight(.medium)
                                     Text(preset.description).font(.caption).foregroundStyle(
                                         .secondary)
                                 }
                                 Spacer()
-                                if selectedPreset == preset {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundStyle(Color.accentColor)
-                                }
+                                Circle()
+                                    .strokeBorder(
+                                        selectedPreset == preset ? Color.accentColor : Color.secondary,
+                                        lineWidth: 1.5)
+                                    .background {
+                                        if selectedPreset == preset {
+                                            Circle()
+                                                .fill(Color.accentColor)
+                                                .padding(3.5)
+                                        }
+                                    }
+                                    .frame(width: 14, height: 14)
+                                    .accessibilityHidden(true)
                             }
                             .padding(.vertical, 14)
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel(preset.name)
+                        .accessibilityHint(preset.description)
+                        .accessibilityAddTraits(selectedPreset == preset ? .isSelected : [])
+                        .accessibilityValue(selectedPreset == preset ? "Selected" : "Not selected")
+                        .help("Use \(preset.name)")
                         if selectedPreset == preset && preset != .licensePlate {
                             VStack(alignment: .leading, spacing: 12) {
                                 styleControls(for: preset)
+                                HStack {
+                                    Spacer()
+                                    Button("Reset preset") {
+                                        preset.resetAppearance()
+                                        basicTextColor = Color(nsColor: NameplatePreset.basicTextColor)
+                                        accentRailColor = Color(nsColor: NameplatePreset.accentRailColor)
+                                        stickyNoteColor = Color(nsColor: NameplatePreset.stickyNoteColor)
+                                        onChange()
+                                    }
+                                    .controlSize(.small)
+                                    .help("Restore this preset's default colors")
+                                }
                             }
                             .padding(.horizontal, 12)
                             .padding(.bottom, 16)
