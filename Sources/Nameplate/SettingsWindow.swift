@@ -49,7 +49,7 @@ final class SettingsWindow: NSWindowController {
 
     init(showApplications: Bool = false, onChange: @escaping () -> Void) {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 850, height: 610),
+            contentRect: NSRect(x: 0, y: 0, width: 1080, height: 740),
             styleMask: [.titled, .closable, .resizable],
             backing: .buffered,
             defer: false
@@ -96,6 +96,7 @@ struct ApplicationSettingsView: View {
     @State private var openWindowSamples: [String: String] = [:]
     @State private var expandedTitleProcessing: Set<String> = []
     @State private var search = ""
+    @State private var showingApplicationPicker = false
     @State private var manualIdentifier = ""
     @State private var selectedPreset = NameplatePreset.selected
     @State private var plateScale = NameplatePreset.plateScale
@@ -153,7 +154,7 @@ struct ApplicationSettingsView: View {
                                 appearancePage
                             }
                         }
-                        .frame(maxWidth: 680, alignment: .leading)
+                        .frame(maxWidth: page == .applications ? 1000 : 680, alignment: .leading)
                         .frame(maxWidth: .infinity, alignment: .topLeading)
                         .padding(28)
                     }
@@ -303,116 +304,220 @@ struct ApplicationSettingsView: View {
         .listStyle(.sidebar)
     }
 
+    private var configuredIdentifiers: [String] {
+        Set(selectedIdentifiers).union(titleRulesByApp.keys).sorted { first, second in
+            let firstName = installedApps.first { $0.bundleIdentifier == first }?.name ?? first
+            let secondName = installedApps.first { $0.bundleIdentifier == second }?.name ?? second
+            return firstName.localizedStandardCompare(secondName) == .orderedAscending
+        }
+    }
+
     private var applicationsPage: some View {
         VStack(alignment: .leading, spacing: 20) {
-            if selectedIdentifiers.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Label("Choose where Nameplate appears", systemImage: "app.badge.checkmark")
-                        .font(.headline)
-                    Text(
-                        "Select the applications whose window titles you want to see in Mission Control."
-                    )
-                        .foregroundStyle(.secondary)
+            HStack(alignment: .center) {
+                Text("Choose where nameplates appear. Expand an app to edit its title.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button {
+                    search = ""
+                    showingApplicationPicker = true
+                } label: {
+                    Label("Add application", systemImage: "plus")
                 }
-            } else {
-                Label(
-                    "Open Mission Control to see your nameplates.", systemImage: "checkmark.circle")
-                    .foregroundStyle(.secondary)
             }
-            settingsCard {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Applications").font(.headline)
-                    Text(
-                        "Select applications for nameplates and edit their window title rules below."
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    TextField("Search installed applications", text: $search)
-                        .textFieldStyle(.roundedBorder)
-                    List(filteredIdentifiers, id: \.self) { identifier in
-                        let applicationName =
-                            installedApps.first { $0.bundleIdentifier == identifier }?.name
-                            ?? identifier
-                        let rulesAction =
-                            expandedTitleProcessing.contains(identifier)
-                            ? "Hide rules" : "Edit rules"
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Button {
-                                    toggle(identifier)
-                                } label: {
-                                    HStack(spacing: 10) {
-                                        if let app = installedApps.first(where: {
-                                            $0.bundleIdentifier == identifier
-                                        }) {
-                                            applicationRow(app)
-                                        } else {
-                                            Label(identifier, systemImage: "app")
-                                        }
-                                        Spacer()
-                                        if selectedIdentifiers.contains(identifier) {
-                                            Image(systemName: "checkmark.circle.fill")
-                                                .foregroundStyle(Color.accentColor)
-                                                .accessibilityHidden(true)
-                                        }
-                                    }
-                                    .contentShape(Rectangle())
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityLabel(
-                                    "\(applicationName), \(selectedIdentifiers.contains(identifier) ? "Selected" : "Not selected")"
-                                )
-                                Button {
-                                    if expandedTitleProcessing.contains(identifier) {
-                                        expandedTitleProcessing.remove(identifier)
-                                    } else {
-                                        expandedTitleProcessing.insert(identifier)
-                                        refreshOpenWindowSample(for: identifier)
-                                    }
-                                } label: {
-                                    Text(rulesAction)
-                                        .font(.caption)
-                                }
-                                .buttonStyle(.borderless)
-                                .help("\(rulesAction) for \(applicationName)")
-                                .accessibilityLabel("\(rulesAction) for \(applicationName)")
-                            }
-                            if expandedTitleProcessing.contains(identifier) {
-                                titleRuleEditor(for: identifier)
-                                    .padding(.vertical, 8)
-                            }
-                        }
-                        .listRowBackground(
-                            selectedIdentifiers.contains(identifier)
-                                ? Color.accentColor.opacity(0.14) : Color.clear)
-                    }
-                    .frame(height: 300)
-                    .overlay {
-                        if filteredIdentifiers.isEmpty {
-                            Text("No matching applications").foregroundStyle(.secondary)
-                        }
-                    }
-                    HStack {
-                        TextField("Or enter a bundle identifier", text: $manualIdentifier)
-                            .textFieldStyle(.roundedBorder)
-                            .onSubmit { addManualIdentifier() }
-                        Button("Add application") { addManualIdentifier() }
-                            .disabled(
-                                manualIdentifier.trimmingCharacters(in: .whitespacesAndNewlines)
-                                    .isEmpty)
+            if configuredIdentifiers.isEmpty {
+                ContentUnavailableView(
+                    "No applications yet", systemImage: "app.badge",
+                    description: Text("Add an application to show its window titles in Mission Control.")
+                )
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 40)
+            } else {
+                VStack(spacing: 12) {
+                    ForEach(configuredIdentifiers, id: \.self) { identifier in
+                        applicationAccordionRow(for: identifier)
                     }
                 }
             }
         }
+        .sheet(isPresented: $showingApplicationPicker) {
+            applicationPicker
+        }
+    }
+
+    private var applicationPicker: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Add application").font(.title2.weight(.semibold))
+                Spacer()
+                Button("Done") { showingApplicationPicker = false }
+                    .keyboardShortcut(.defaultAction)
+            }
+            TextField("Search applications", text: $search)
+                .textFieldStyle(.roundedBorder)
+            List(filteredIdentifiers, id: \.self) { identifier in
+                HStack {
+                    if let app = installedApps.first(where: { $0.bundleIdentifier == identifier }) {
+                        applicationRow(app)
+                    } else {
+                        Label(identifier, systemImage: "app")
+                    }
+                    Spacer()
+                    if configuredIdentifiers.contains(identifier) {
+                        Text("Added").font(.caption).foregroundStyle(.secondary)
+                    } else {
+                        Button("Add") {
+                            add(identifier)
+                            expandedTitleProcessing = [identifier]
+                            refreshOpenWindowSample(for: identifier)
+                        }
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+            .overlay {
+                if filteredIdentifiers.isEmpty {
+                    Text("No matching applications").foregroundStyle(.secondary)
+                }
+            }
+            DisclosureGroup("Add by bundle identifier") {
+                HStack {
+                    TextField("com.example.app", text: $manualIdentifier)
+                        .textFieldStyle(.roundedBorder)
+                        .onSubmit { addManualIdentifier() }
+                    Button("Add") { addManualIdentifier() }
+                        .disabled(manualIdentifier.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+                .padding(.top, 8)
+            }
+            .font(.callout)
+        }
+        .padding(24)
+        .frame(width: 480, height: 480)
+    }
+
+    private func applicationAccordionRow(for identifier: String) -> some View {
+        let app = installedApps.first { $0.bundleIdentifier == identifier }
+        let name = app.flatMap { $0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0.name } ?? identifier
+        let isExpanded = expandedTitleProcessing.contains(identifier)
+        let ruleCount = titleRulesByApp[identifier]?.count ?? 0
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 14) {
+                Button {
+                    if isExpanded {
+                        expandedTitleProcessing.remove(identifier)
+                    } else {
+                        expandedTitleProcessing = [identifier]
+                        refreshOpenWindowSample(for: identifier)
+                    }
+                } label: {
+                    HStack(spacing: 12) {
+                        if let app {
+                            Image(nsImage: NSWorkspace.shared.icon(forFile: app.url.path))
+                                .resizable()
+                                .frame(width: 26, height: 26)
+                        } else {
+                            Image(systemName: "app")
+                                .frame(width: 26, height: 26)
+                        }
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(name).fontWeight(.medium)
+                            if ruleCount > 0 {
+                                Text("\(ruleCount) \(ruleCount == 1 ? "rule" : "rules")")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(identifier)
+                .accessibilityLabel("\(isExpanded ? "Hide" : "Edit") rules for \(name)")
+                Toggle(
+                    "Enabled",
+                    isOn: Binding(
+                        get: { selectedIdentifiers.contains(identifier) },
+                        set: { enabled in
+                            if enabled { add(identifier) } else { remove(identifier) }
+                        }
+                    )
+                )
+                .toggleStyle(.switch)
+                .labelsHidden()
+                .controlSize(.small)
+                .fixedSize()
+                .accessibilityLabel("Enable nameplates for \(name)")
+                Button(role: .destructive) {
+                    removeApplication(identifier)
+                } label: {
+                    Image(systemName: "trash")
+                        .foregroundStyle(.red)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Remove \(name) and its title rules")
+                .accessibilityLabel("Remove \(name)")
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            if isExpanded {
+                Divider().padding(.horizontal, 20)
+                titleRuleEditor(for: identifier)
+                    .padding(20)
+            }
+        }
+        .background(Color.primary.opacity(0.055),
+                    in: RoundedRectangle(cornerRadius: 12))
     }
 
     private func titleRuleEditor(for identifier: String) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: 28) {
+                titleRuleControls(for: identifier)
+                    .frame(minWidth: 300, maxWidth: .infinity)
+                titleRulePreview(for: identifier)
+                    .frame(minWidth: 240, maxWidth: .infinity)
+            }
+            VStack(alignment: .leading, spacing: 20) {
+                titleRuleControls(for: identifier)
+                titleRulePreview(for: identifier)
+            }
+        }
+    }
+
+    private func titleRuleControls(for identifier: String) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Title rules").font(.headline)
+            if (titleRulesByApp[identifier] ?? []).isEmpty {
+                Text("Add a rule to simplify this application's window titles.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+            titleRuleList(for: identifier)
+            Button {
+                addRule(identifier)
+            } label: {
+                Label("Add rule", systemImage: "plus")
+            }
+            .buttonStyle(.borderless)
+            .controlSize(.small)
+        }
+    }
+
+    private func titleRuleList(for identifier: String) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             let rules = titleRulesByApp[identifier] ?? []
             ForEach(Array(rules.enumerated()), id: \.element.id) { index, rule in
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Toggle("", isOn: ruleBinding(identifier, rule.id, \.isEnabled))
+                        Toggle("Enable rule \(index + 1)", isOn: ruleBinding(identifier, rule.id, \.isEnabled))
                             .labelsHidden()
                         Text("Rule \(index + 1)").fontWeight(.medium)
                         Spacer()
@@ -421,65 +526,55 @@ struct ApplicationSettingsView: View {
                         } label: {
                             Image(systemName: "arrow.up")
                         }.disabled(index == 0)
+                        .help("Move rule up")
                         Button {
                             moveRule(identifier, from: index, by: 1)
                         } label: {
                             Image(systemName: "arrow.down")
                         }.disabled(index == rules.count - 1)
+                        .help("Move rule down")
                         Button(role: .destructive) {
                             removeRule(identifier, id: rule.id)
                         } label: {
                             Image(systemName: "trash")
                         }
+                        .help("Delete rule")
                     }
-                    HStack(spacing: 12) {
+                    .buttonStyle(.borderless)
+                    .controlSize(.small)
+                    Divider().padding(.vertical, 2)
+                    HStack {
                         Text("Action")
-                        Menu {
+                        Spacer(minLength: 12)
+                        Picker("Action", selection: ruleBinding(identifier, rule.id, \.kind)) {
                             ForEach(WindowTitleRule.Kind.allCases, id: \.self) { kind in
-                                Button {
-                                    updateRule(identifier, id: rule.id, \.kind, to: kind)
-                                } label: {
-                                    if rule.kind == kind {
-                                        Label(kind.displayName, systemImage: "checkmark")
-                                    } else {
-                                        Text(kind.displayName)
-                                    }
-                                }
+                                Text(kind == .removeAfter ? "Remove ending" : kind.displayName)
+                                    .tag(kind)
                             }
-                        } label: {
-                            HStack {
-                                Text(rule.kind.displayName)
-                                Spacer()
-                                Image(systemName: "chevron.up.chevron.down")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.horizontal, 10)
-                            .frame(height: 28)
-                            .frame(maxWidth: .infinity)
-                            .contentShape(Rectangle())
                         }
-                        .menuStyle(.borderlessButton)
-                        .background(
-                            Color(nsColor: .controlBackgroundColor),
-                            in: RoundedRectangle(cornerRadius: 6)
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .fixedSize()
+                    }
+                    .padding(.vertical, 4)
+                    Divider().padding(.vertical, 2)
+                    HStack(spacing: 16) {
+                        Text(rule.kind == .removeAfter ? "Separator" : "Find")
+                        Spacer(minLength: 0)
+                        TextField(
+                            rule.kind == .removeAfter ? "e.g. —" : "Find text",
+                            text: ruleBinding(identifier, rule.id, \.pattern)
                         )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 6)
-                                .stroke(Color.secondary.opacity(0.25), lineWidth: 1)
-                        )
-                        .accessibilityLabel("Action: \(rule.kind.displayName)")
+                        .modifier(TitleEditorFieldStyle())
+                        .frame(maxWidth: rule.kind == .removeAfter ? 100 : 180)
                     }
                     if rule.kind == .removeAfter {
-                        Text("Removes the last matching separator and all text after it.")
+                        Text("Removes the last matching separator and everything after it.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.top, 4)
                     }
-                    TextField(
-                        rule.kind == .removeAfter ? "Separator, e.g.  — " : "Find",
-                        text: ruleBinding(identifier, rule.id, \.pattern)
-                    )
-                    .textFieldStyle(.roundedBorder)
                     if rule.kind == .removeAfter,
                         let sample = sampleTitles[identifier],
                         !sample.isEmpty,
@@ -501,55 +596,72 @@ struct ApplicationSettingsView: View {
                             "Replace with (empty removes it)",
                             text: ruleBinding(identifier, rule.id, \.replacement)
                         )
-                        .textFieldStyle(.roundedBorder)
+                        .modifier(TitleEditorFieldStyle())
                     }
                     if let error = rule.validationError {
                         Text(error).font(.caption).foregroundStyle(.red)
                     }
                 }
-                .padding(12)
-                .background(
-                    Color(nsColor: .underPageBackgroundColor), in: RoundedRectangle(cornerRadius: 8)
-                )
+                if index < rules.count - 1 {
+                    Divider().padding(.vertical, 8)
+                }
             }
-            Button {
-                addRule(identifier)
-            } label: {
-                Label("Add rule", systemImage: "plus")
-            }
-            HStack {
-                Text("Sample window title").font(.caption).foregroundStyle(.secondary)
-                Spacer()
-                Button("Refresh") { refreshOpenWindowSample(for: identifier) }
-                    .buttonStyle(.link)
-                    .font(.caption)
-            }
-            TextField(
-                "Try a window title",
-                text: Binding(
-                    get: { sampleTitles[identifier] ?? "" },
-                    set: { sampleTitles[identifier] = $0 }
-                )
-            )
-            .textFieldStyle(.roundedBorder)
-            if !accessibility.isGranted {
-                Text(
-                    "Allow Accessibility access in General settings, then refresh to use a window title from this application."
-                )
+        }
+    }
+
+    private func titleRulePreview(for identifier: String) -> some View {
+        let sample = sampleTitles[identifier] ?? ""
+        let result = WindowTitleProcessing.process(sample, using: titleRulesByApp[identifier] ?? [])
+        return VStack(alignment: .leading, spacing: 16) {
+            Text("Preview").font(.headline)
+            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("Original title")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Refresh") { refreshOpenWindowSample(for: identifier) }
+                        .buttonStyle(.link)
+                }
                 .font(.caption)
-                .foregroundStyle(.secondary)
-            } else if openWindowSamples[identifier] == nil {
-                Text(
-                    "Open a window in this application, then refresh to use its window title here."
+                TextField(
+                    "Try a window title",
+                    text: Binding(
+                        get: { sampleTitles[identifier] ?? "" },
+                        set: { sampleTitles[identifier] = $0 }
+                    )
                 )
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .modifier(TitleEditorFieldStyle())
+                .accessibilityLabel("Original title")
             }
-            if let sample = sampleTitles[identifier], !sample.isEmpty {
-                Text("Result: \(WindowTitleProcessing.process(sample, using: rules))")
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Displayed title")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                Text(sample.isEmpty ? "Enter a title to preview" : result.isEmpty ? "Empty title" : result)
+                    .font(.body)
+                    .foregroundStyle(sample.isEmpty || result.isEmpty ? .secondary : .primary)
                     .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.primary.opacity(0.035),
+                                in: RoundedRectangle(cornerRadius: 6))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
+                            .allowsHitTesting(false)
+                    }
+            }
+            }
+
+            if sample.isEmpty {
+                Text(accessibility.isGranted
+                     ? "Enter a sample title, or open a window in this application and refresh."
+                     : "Enter a sample title, or allow Accessibility access in General to read an open window.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -825,10 +937,30 @@ struct ApplicationSettingsView: View {
     private func add(_ identifier: String) {
         guard !identifier.isEmpty, !selectedIdentifiers.contains(identifier) else { return }
         selectedIdentifiers.append(identifier)
+        if titleRulesByApp[identifier] == nil {
+            titleRulesByApp[identifier] = []
+            persistTitleRules()
+        }
         persist()
     }
 
+    private func removeApplication(_ identifier: String) {
+        selectedIdentifiers.removeAll { $0 == identifier }
+        titleRulesByApp.removeValue(forKey: identifier)
+        expandedTitleProcessing.remove(identifier)
+        sampleTitles.removeValue(forKey: identifier)
+        openWindowSamples.removeValue(forKey: identifier)
+        // Save both values before notifying observers so removed apps cannot reappear.
+        WindowTitleProcessing.rulesByApp = titleRulesByApp
+        SelectedApplications.save(selectedIdentifiers)
+        onChange()
+    }
+
     private func remove(_ identifier: String) {
+        if titleRulesByApp[identifier] == nil {
+            titleRulesByApp[identifier] = []
+            persistTitleRules()
+        }
         selectedIdentifiers.removeAll { $0 == identifier }
         persist()
     }
@@ -844,5 +976,23 @@ struct ApplicationSettingsView: View {
     private func persist() {
         SelectedApplications.save(selectedIdentifiers)
         onChange()
+    }
+}
+
+private struct TitleEditorFieldStyle: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .textFieldStyle(.plain)
+            .font(.body)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.primary.opacity(0.035),
+                        in: RoundedRectangle(cornerRadius: 6))
+            .overlay {
+                RoundedRectangle(cornerRadius: 6)
+                    .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
+                    .allowsHitTesting(false)
+            }
     }
 }

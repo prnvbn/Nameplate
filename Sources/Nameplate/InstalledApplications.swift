@@ -22,9 +22,12 @@ enum InstalledApplications {
                 guard url.pathExtension == "app" else { continue }
                 enumerator.skipDescendants()
                 guard let bundle = Bundle(url: url), let identifier = bundle.bundleIdentifier else { continue }
-                let name = (bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String)
-                    ?? (bundle.object(forInfoDictionaryKey: "CFBundleName") as? String)
-                    ?? url.deletingPathExtension().lastPathComponent
+                let name = [
+                    bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String,
+                    bundle.object(forInfoDictionaryKey: "CFBundleName") as? String,
+                    url.deletingPathExtension().lastPathComponent,
+                ].compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .first { !$0.isEmpty } ?? identifier
                 appsByID[identifier] = InstalledApplication(name: name, bundleIdentifier: identifier, url: url)
             }
         }
