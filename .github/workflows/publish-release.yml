@@ -109,8 +109,11 @@ jobs:
             gh release create "$tag" --verify-tag --prerelease \
               --title "Nameplate $VERSION" --notes-file "$RUNNER_TEMP/release-notes.md"
           fi
-          echo "Prerelease: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$tag" >> "$GITHUB_STEP_SUMMARY"
-          echo 'Edit the release notes, then approve the release environment when ready. If Apple is still processing, re-run failed jobs later.' >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "Prerelease: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$tag"
+            echo 'Edit the release notes, then approve the release environment when ready. If Apple is still processing, re-run failed jobs later.'
+            echo 'Finalization embeds these notes in the appcast. If you edit them after publishing, run **Actions → Refresh appcast release notes → Run workflow** with the tag blank to refresh the latest stable appcast.'
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Remove temporary signing keychain
         if: always()
         run: security delete-keychain "$RUNNER_TEMP/nameplate-signing.keychain-db" 2>/dev/null || true
