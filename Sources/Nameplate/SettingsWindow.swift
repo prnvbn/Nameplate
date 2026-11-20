@@ -66,14 +66,12 @@ struct ApplicationSettingsView: View {
         case general = "General"
         case applications = "Applications"
         case appearance = "Nameplate Style"
-        case about = "About"
 
         var symbol: String {
             switch self {
             case .general: "gearshape"
             case .applications: "square.stack.3d.up"
             case .appearance: "paintpalette"
-            case .about: "info.circle"
             }
         }
     }
@@ -120,24 +118,32 @@ struct ApplicationSettingsView: View {
                 .frame(maxHeight: .infinity)
                 .background(Color(nsColor: .underPageBackgroundColor))
             Divider()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    Text((page ?? .general).rawValue)
-                        .font(.system(size: 24, weight: .semibold))
-                    if page == .general {
-                        generalPage
-                    } else if page == .applications {
-                        applicationsPage
-                    } else if page == .appearance {
-                        appearancePage
-                    } else {
-                        aboutPage
+            VStack(alignment: .leading, spacing: 0) {
+                Text((page ?? .general).rawValue)
+                    .font(.title.bold())
+                    .padding(.horizontal, 28)
+                    .padding(.top, 28)
+                    .padding(.bottom, 8)
+
+                switch page ?? .general {
+                case .general:
+                    generalPage
+                case .applications, .appearance:
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 20) {
+                            if page == .applications {
+                                applicationsPage
+                            } else {
+                                appearancePage
+                            }
+                        }
+                        .frame(maxWidth: 680, alignment: .leading)
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                        .padding(28)
                     }
                 }
-                .frame(maxWidth: 680, alignment: .leading)
-                .frame(maxWidth: .infinity, alignment: .topLeading)
-                .padding(28)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(Color(nsColor: .windowBackgroundColor))
         }
         .frame(minWidth: 720, minHeight: 520)
@@ -160,43 +166,62 @@ struct ApplicationSettingsView: View {
     }
 
     private var generalPage: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            settingsCard {
+        Form {
+            Section {
                 AccessibilitySettingsCard()
-            }
-            settingsCard {
-                VStack(alignment: .leading, spacing: 12) {
-                    Toggle(
-                        isOn: Binding(
-                            get: { launchAtLogin },
-                            set: { updateLaunchAtLogin($0) }
-                        )
-                    ) {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text("Launch at Login")
-                                .fontWeight(.medium)
-                            Text("Start Nameplate when you sign in to your Mac.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .disabled(!LaunchAtLogin.isPackagedApp)
-                    if !LaunchAtLogin.isPackagedApp {
-                        Text("Available when you open the built Nameplate application.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else if LaunchAtLogin.requiresApproval {
-                        HStack {
-                            Text("Allow Nameplate in macOS Login Items to finish setup.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                            Button("Open Login Items") { LaunchAtLogin.openSystemSettings() }
-                        }
+
+                Toggle(
+                    isOn: Binding(
+                        get: { launchAtLogin },
+                        set: { updateLaunchAtLogin($0) }
+                    )
+                ) {
+                    Text("Launch at Login")
+                    Text(
+                        LaunchAtLogin.isPackagedApp
+                            ? "Start Nameplate when you sign in to your Mac."
+                            : "Available when you open the built Nameplate application."
+                    )
+                }
+                .disabled(!LaunchAtLogin.isPackagedApp)
+
+                if LaunchAtLogin.isPackagedApp && LaunchAtLogin.requiresApproval {
+                    LabeledContent {
+                        Button("Open Login Items") { LaunchAtLogin.openSystemSettings() }
+                    } label: {
+                        Text("Approval required")
+                        Text("Allow Nameplate in macOS Login Items to finish setup.")
                     }
                 }
             }
+
+            Section {
+                LabeledContent("Version") {
+                    Text(appVersion)
+                        .textSelection(.enabled)
+                }
+                LabeledContent("GitHub") {
+                    Link(
+                        "Nameplate on GitHub",
+                        destination: URL(string: "https://github.com/prnvbn/Nameplate")!)
+                    .help("Enjoying Nameplate? Drop a star on GitHub.")
+                }
+                LabeledContent("Feedback") {
+                    Link(
+                        "Report an Issue",
+                        destination: URL(string: "https://github.com/prnvbn/Nameplate/issues")!)
+                    .help("Report a bug or request a feature on GitHub.")
+                }
+            } header: {
+                Text("About Nameplate")
+            } footer: {
+                Text("See window titles at a glance in Mission Control.")
+            }
         }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .frame(maxWidth: 736)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear {
             launchAtLogin = LaunchAtLogin.isEnabled
         }
@@ -655,42 +680,6 @@ struct ApplicationSettingsView: View {
                 }
         case .licensePlate:
             EmptyView()
-        }
-    }
-
-    private var aboutPage: some View {
-        settingsCard {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Nameplate")
-                    .font(.title2.bold())
-                Text("See window titles at a glance in Mission Control.")
-                    .foregroundStyle(.secondary)
-                Divider()
-                HStack {
-                    Text("Version")
-                    Spacer()
-                    Text(appVersion)
-                        .foregroundStyle(.secondary)
-                        .textSelection(.enabled)
-                }
-                Divider()
-                VStack(alignment: .leading, spacing: 6) {
-                    Link(
-                        "Nameplate on GitHub",
-                        destination: URL(string: "https://github.com/prnvbn/Nameplate")!)
-                    Text("Enjoying Nameplate? Drop a star on GitHub.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
-                VStack(alignment: .leading, spacing: 6) {
-                    Link(
-                        "Report a bug or request a feature",
-                        destination: URL(string: "https://github.com/prnvbn/Nameplate/issues")!)
-                    Text("Share bugs and feature requests on the GitHub issues page.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
-            }
         }
     }
 
