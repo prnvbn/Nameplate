@@ -1,0 +1,29 @@
+name: Refresh appcast release notes
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release containing the appcast, empty uses latest stable
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-appcast-notes
+  cancel-in-progress: false
+
+jobs:
+  refresh-notes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: Copy GitHub release notes into the appcast
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: python3 scripts/refresh_appcast_notes.py --tag "$RELEASE_TAG"
