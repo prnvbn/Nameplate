@@ -10,7 +10,6 @@ struct RenderStylePreviews {
     static func main() throws {
         // Keep documentation previews independent of saved application preferences.
         UserDefaults.standard.setVolatileDomain([
-            "basicOpacity": 0.82,
             "basicTextColor": [0.96, 0.96, 0.96],
             "accentRailColor": [214.0 / 255, 245.0 / 255, 156.0 / 255],
             "stickyNoteColor": [1.0, 0.96, 0.70],

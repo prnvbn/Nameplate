@@ -90,7 +90,6 @@ struct ApplicationSettingsView: View {
     @State private var manualIdentifier = ""
     @State private var selectedPreset = NameplatePreset.selected
     @State private var plateScale = NameplatePreset.plateScale
-    @State private var basicOpacity = NameplatePreset.basicOpacity
     @State private var basicTextColor = Color(nsColor: NameplatePreset.basicTextColor)
     @State private var accentRailColor = Color(nsColor: NameplatePreset.accentRailColor)
     @State private var stickyNoteColor = Color(nsColor: NameplatePreset.stickyNoteColor)
@@ -585,17 +584,6 @@ struct ApplicationSettingsView: View {
     private func styleControls(for preset: NameplatePreset) -> some View {
         switch preset {
         case .basic:
-            HStack {
-                Text("Opacity")
-                Slider(value: $basicOpacity, in: 0.2...1)
-                    .onChange(of: basicOpacity) { _, value in
-                        NameplatePreset.basicOpacity = value
-                        onChange()
-                    }
-                Text("\(Int(basicOpacity * 100))%")
-                    .monospacedDigit()
-                    .frame(width: 42, alignment: .trailing)
-            }
             ColorPicker("Window title color", selection: $basicTextColor, supportsOpacity: false)
                 .onChange(of: basicTextColor) { _, value in
                     NameplatePreset.basicTextColor = NSColor(value)

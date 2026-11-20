@@ -54,7 +54,7 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
 
     var backgroundColor: NSColor {
         switch self {
-        case .basic: NSColor(calibratedWhite: 0.12, alpha: Self.basicOpacity)
+        case .basic: NSColor(calibratedWhite: 0.12, alpha: 1)
         case .accentRail: NSColor(calibratedWhite: 0.12, alpha: 0.9)
         case .stickyNote: Self.stickyNoteColor
         case .licensePlate: NSColor(calibratedWhite: 0.08, alpha: 1)
@@ -88,6 +88,14 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
         }
     }
 
+    private var panelInset: CGFloat {
+        switch self {
+        case .basic, .accentRail: 12
+        case .stickyNote: 24
+        case .licensePlate: 1
+        }
+    }
+
     func displayText(_ title: String) -> String {
         self == .licensePlate ? title.uppercased() : title
     }
@@ -98,11 +106,6 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
             return value.isFinite ? min(2, max(0.5, value)) : 1
         }
         set { UserDefaults.standard.set(newValue.isFinite ? min(2, max(0.5, newValue)) : 1, forKey: "plateScale") }
-    }
-
-    static var basicOpacity: Double {
-        get { UserDefaults.standard.object(forKey: "basicOpacity") as? Double ?? 0.82 }
-        set { UserDefaults.standard.set(newValue, forKey: "basicOpacity") }
     }
 
     static var basicTextColor: NSColor {
@@ -171,7 +174,7 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
             y: (NSScreen.screens.first?.frame.maxY ?? 0) - thumbnail.frame.midY - scaledHeight / 2,
             width: scaledWidth,
             height: scaledHeight
-        )
+        ).insetBy(dx: -panelInset * Self.plateScale, dy: -panelInset * Self.plateScale)
     }
 
     func makePanel(title: String, bundleIdentifier: String, frame: NSRect) -> NSPanel {
@@ -180,6 +183,8 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
             contentRect: frame, styleMask: [.borderless], backing: .buffered, defer: false)
         panel.isOpaque = false
         panel.backgroundColor = .clear
+        // Each style draws its own shadow inside the transparent panel margin.
+        panel.hasShadow = false
         panel.ignoresMouseEvents = true
         panel.hidesOnDeactivate = false
         panel.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.screenSaverWindow)))
@@ -187,11 +192,14 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
 
         let content = NSView(frame: NSRect(origin: .zero, size: frame.size))
         panel.contentView = content
-        let frame = NSRect(origin: .zero, size: NSSize(
+        let contentBounds = NSRect(origin: .zero, size: NSSize(
             width: frame.width / Self.plateScale, height: frame.height / Self.plateScale))
-        content.bounds = frame
+        content.bounds = contentBounds
+        // Keep the rounded edge and shadow away from the window's clipping boundary.
+        let plateFrame = contentBounds.insetBy(dx: panelInset, dy: panelInset)
+        let frame = NSRect(origin: .zero, size: plateFrame.size)
 
-        let background = NSView(frame: NSRect(origin: .zero, size: frame.size))
+        let background = NSView(frame: plateFrame)
         background.wantsLayer = true
         switch preset {
         case .basic:
@@ -288,8 +296,8 @@ enum NameplatePreset: String, CaseIterable, Identifiable {
             label.lineBreakMode = .byTruncatingMiddle
             let labelHeight = label.intrinsicContentSize.height
             label.frame = NSRect(
-                x: padding,
-                y: (frame.height - labelHeight) / 2,
+                x: plateFrame.minX + padding,
+                y: plateFrame.minY + (frame.height - labelHeight) / 2,
                 width: frame.width - padding * 2,
                 height: labelHeight
             )
