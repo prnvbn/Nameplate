@@ -140,8 +140,11 @@ jobs:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           VERSION: ${{ needs.prepare.outputs.version }}
         run: bash scripts/notarize-release.sh finalize "dist/Nameplate-$VERSION-macos-arm64.dmg" dist/notarization.json
+      - name: Resolve pinned Sparkle tools
+        run: swift package --disable-keychain resolve
       - name: Publish stable release
         env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           VERSION: ${{ needs.prepare.outputs.version }}
@@ -157,11 +160,6 @@ jobs:
             echo "Release $tag is already stable; leaving it unchanged."
             exit 0
           fi
-          # Copy only after notarization and stapling have completed.
-          cp "dist/Nameplate-$VERSION-macos-arm64.dmg" dist/Nameplate-macos-arm64.dmg
-          gh release upload "$tag" \
-            "dist/Nameplate-$VERSION-macos-arm64.dmg" \
-            dist/Nameplate-macos-arm64.dmg --clobber
           gh release view "$tag" --json body --jq .body > "$RUNNER_TEMP/release-notes.md"
           python3 - "$RUNNER_TEMP/release-notes.md" <<'PYTHON'
           import pathlib, re, sys
@@ -170,6 +168,12 @@ jobs:
           notes = re.sub(r'<!-- nameplate-notarization:start -->.*?<!-- nameplate-notarization:end -->\n?', '', notes, flags=re.DOTALL)
           path.write_text(notes)
           PYTHON
+          bash scripts/generate-update-feed.sh "$VERSION" "$RUNNER_TEMP/release-notes.md"
+          # Copy only after notarization and stapling have completed.
+          cp "dist/Nameplate-$VERSION-macos-arm64.dmg" dist/Nameplate-macos-arm64.dmg
+          gh release upload "$tag" \
+            "dist/Nameplate-$VERSION-macos-arm64.dmg" \
+            dist/Nameplate-macos-arm64.dmg dist/appcast.xml --clobber
           gh release edit "$tag" --prerelease=false --latest \
             --notes-file "$RUNNER_TEMP/release-notes.md"
 

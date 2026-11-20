@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     ) {
         print("Nameplate launched")
         NSApp.setActivationPolicy(.accessory)
+        AppUpdater.shared.start()
         AccessibilityAccess.shared.startMonitoring()
         if !AccessibilityAccess.shared.isGranted {
             openSettings(showAccessibilitySetup: true)

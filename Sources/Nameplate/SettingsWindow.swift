@@ -200,6 +200,9 @@ struct ApplicationSettingsView: View {
                     Text(appVersion)
                         .textSelection(.enabled)
                 }
+                LabeledContent("Updates") {
+                    CheckForUpdatesButton()
+                }
                 LabeledContent("GitHub") {
                     Link(
                         "Nameplate on GitHub",

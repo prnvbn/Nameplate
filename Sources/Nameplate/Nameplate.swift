@@ -18,6 +18,7 @@ struct Nameplate: App {
                 Divider()
             }
             Button("Settings…") { delegate.openSettings() }
+            CheckForUpdatesButton()
             Divider()
             Button("Quit Nameplate") { delegate.quitNameplate() }
         } label: {
