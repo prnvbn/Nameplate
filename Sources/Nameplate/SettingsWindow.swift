@@ -352,10 +352,9 @@ struct ApplicationSettingsView: View {
                 Text("Add application").font(.title2.weight(.semibold))
                 Spacer()
                 Button("Done") { showingApplicationPicker = false }
-                    .keyboardShortcut(.defaultAction)
+                    .keyboardShortcut(.cancelAction)
             }
-            TextField("Search applications", text: $search)
-                .textFieldStyle(.roundedBorder)
+            ApplicationSearchField(text: $search)
             List(filteredIdentifiers, id: \.self) { identifier in
                 HStack {
                     if let app = installedApps.first(where: { $0.bundleIdentifier == identifier }) {
