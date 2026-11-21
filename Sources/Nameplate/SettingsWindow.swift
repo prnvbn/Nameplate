@@ -88,6 +88,7 @@ struct ApplicationSettingsView: View {
     }
 
     let onChange: () -> Void
+    @AppStorage(Nameplate.showMenuBarIconKey) private var showMenuBarIcon = true
     @ObservedObject private var accessibility = AccessibilityAccess.shared
     @State private var installedApps = InstalledApplications.scan()
     @State private var selectedIdentifiers = SelectedApplications.bundleIdentifiers
@@ -234,6 +235,11 @@ struct ApplicationSettingsView: View {
                     )
                 }
                 .disabled(!LaunchAtLogin.isPackagedApp)
+
+                Toggle(isOn: $showMenuBarIcon) {
+                    Text("Show Menu Bar Icon")
+                    Text("If hidden, open the Nameplate app again to return to Settings.")
+                }
 
                 if LaunchAtLogin.isPackagedApp && LaunchAtLogin.requiresApproval {
                     LabeledContent {

@@ -2,12 +2,15 @@ import SwiftUI
 
 @main
 struct Nameplate: App {
+    static let showMenuBarIconKey = "showMenuBarIcon"
+
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
+    @AppStorage(showMenuBarIconKey) private var showMenuBarIcon = true
     @State private var hasSelectedApplications = !SelectedApplications.bundleIdentifiers.isEmpty
     @ObservedObject private var accessibility = AccessibilityAccess.shared
 
     var body: some Scene {
-        MenuBarExtra {
+        MenuBarExtra(isInserted: $showMenuBarIcon) {
             if !accessibility.isGranted {
                 Button {
                     delegate.openSettings(showAccessibilitySetup: true)
