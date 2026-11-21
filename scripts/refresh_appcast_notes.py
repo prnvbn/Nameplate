@@ -74,16 +74,39 @@ def refresh_notes(feed, load_notes, history=None, render=render_markdown):
         ).strip()
         if not notes or "TODO: Add release notes" in notes:
             raise ValueError(f"Release v{version} has empty or placeholder notes")
+        # GitHub's generic heading adds no information beneath a version heading.
+        notes = re.sub(r"\A#{1,6}\s+release notes\s*\n+", "", notes, flags=re.IGNORECASE)
         rendered[version] = render(notes)
     for item, version in items:
         sections = [
-            f'<div data-sparkle-version="{older}"><h2>Version {html.escape(older)}</h2>'
+            f'<div data-sparkle-version="{older}"><h2 class="version">{html.escape(older)}</h2>'
             + rendered[older] + '</div>'
             for older in sorted(rendered, key=version_key, reverse=True)
             if version_key(older) <= version_key(version)
         ]
         content = ('<!DOCTYPE html><html><head><meta charset="utf-8"><style>'
-                   'body { font-family: -apple-system, sans-serif; }'
+                   ':root { color-scheme: light dark; }'
+                   'body { margin: 0; padding: 16px 20px; '
+                   'font: 13px/1.55 -apple-system, BlinkMacSystemFont, sans-serif; '
+                   'overflow-wrap: anywhere; }'
+                   'div[data-sparkle-version] + div[data-sparkle-version] '
+                   '{ margin-top: 20px; padding-top: 16px; '
+                   'border-top: 1px solid rgba(128,128,128,.25); }'
+                   'h2.version { font-size: 16px; font-weight: 650; '
+                   'letter-spacing: -.2px; margin: 0 0 8px; }'
+                   'h1, h2, h3, h4, h5, h6 { font-size: 13px; '
+                   'font-weight: 600; margin: 14px 0 6px; }'
+                   'p { margin: 6px 0; }'
+                   'ul, ol { margin: 6px 0; padding-left: 20px; }'
+                   'li { margin: 4px 0; }'
+                   'li > p { margin: 0; }'
+                   'a { color: LinkText; }'
+                   'pre { overflow-x: auto; padding: 10px; '
+                   'background: rgba(128,128,128,.12); border-radius: 6px; }'
+                   'code { font-size: .92em; }'
+                   'img { max-width: 100%; height: auto; }'
+                   'blockquote { margin: 10px 0; padding-left: 12px; '
+                   'border-left: 2px solid rgba(128,128,128,.4); }'
                    'div.sparkle-installed-version, div.sparkle-installed-version ~ div '
                    '{ display: none; }'
                    '</style></head><body>' + ''.join(sections) + '</body></html>')
