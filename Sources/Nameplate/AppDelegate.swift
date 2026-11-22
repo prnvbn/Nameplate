@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import CoreServices
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -12,6 +13,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(
         _ notification: Notification
     ) {
+        let launchEvent = NSAppleEventManager.shared().currentAppleEvent
+        let openedByUser = launchEvent?.eventID == kAEOpenApplication
+            && launchEvent?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == nil
         print("Nameplate launched")
         NSApp.setActivationPolicy(.accessory)
         AppUpdater.shared.start()
@@ -23,6 +27,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         if !AccessibilityAccess.shared.isGranted {
             openSettings(showAccessibilitySetup: true)
+        } else if openedByUser && settingsWindow == nil {
+            openSettings()
         }
 
         startMissionControlMonitoring()
@@ -32,7 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         _ sender: NSApplication, hasVisibleWindows flag: Bool
     ) -> Bool {
         openSettings()
-        return true
+        return false
     }
 
     func startMissionControlMonitoring() {
