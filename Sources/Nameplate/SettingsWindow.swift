@@ -58,7 +58,8 @@ final class SettingsWindow: NSWindowController {
         window.minSize = NSSize(width: 720, height: 520)
         window.center()
         window.contentView = NSHostingView(
-            rootView: ApplicationSettingsView(showApplications: showApplications, onChange: onChange))
+            rootView: ApplicationSettingsView(
+                showApplications: showApplications, onChange: onChange))
         super.init(window: window)
     }
 
@@ -262,15 +263,18 @@ struct ApplicationSettingsView: View {
                 LabeledContent("GitHub") {
                     Link(
                         "Nameplate on GitHub",
-                        destination: URL(string: "https://github.com/prnvbn/Nameplate")!)
+                        destination: URL(string: "https://github.com/prnvbn/Nameplate")!
+                    )
                     .help("Enjoying Nameplate? Drop a star on GitHub.")
                 }
                 LabeledContent("Feedback") {
                     Link(
                         "Report an Issue",
-                        destination: URL(string: "https://github.com/prnvbn/Nameplate/issues")!)
+                        destination: URL(string: "https://github.com/prnvbn/Nameplate/issues")!
+                    )
                     .help("Report a bug or request a feature on GitHub.")
                 }
+                MissionControlDiagnosticsRow()
             } header: {
                 Text("About Nameplate")
             } footer: {
@@ -336,7 +340,8 @@ struct ApplicationSettingsView: View {
             if configuredIdentifiers.isEmpty {
                 ContentUnavailableView(
                     "No applications yet", systemImage: "app.badge",
-                    description: Text("Add an application to show its window titles in Mission Control.")
+                    description: Text(
+                        "Add an application to show its window titles in Mission Control.")
                 )
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 40)
@@ -393,7 +398,9 @@ struct ApplicationSettingsView: View {
                         .textFieldStyle(.roundedBorder)
                         .onSubmit { addManualIdentifier() }
                     Button("Add") { addManualIdentifier() }
-                        .disabled(manualIdentifier.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .disabled(
+                            manualIdentifier.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        )
                 }
                 .padding(.top, 8)
             }
@@ -405,7 +412,10 @@ struct ApplicationSettingsView: View {
 
     private func applicationAccordionRow(for identifier: String) -> some View {
         let app = installedApps.first { $0.bundleIdentifier == identifier }
-        let name = app.flatMap { $0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0.name } ?? identifier
+        let name =
+            app.flatMap {
+                $0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0.name
+            } ?? identifier
         let isExpanded = expandedTitleProcessing.contains(identifier)
         let ruleCount = titleRulesByApp[identifier]?.count ?? 0
         return VStack(alignment: .leading, spacing: 0) {
@@ -479,8 +489,9 @@ struct ApplicationSettingsView: View {
                     .padding(20)
             }
         }
-        .background(Color.primary.opacity(0.055),
-                    in: RoundedRectangle(cornerRadius: 12))
+        .background(
+            Color.primary.opacity(0.055),
+            in: RoundedRectangle(cornerRadius: 12))
     }
 
     private func titleRuleEditor(for identifier: String) -> some View {
@@ -523,8 +534,11 @@ struct ApplicationSettingsView: View {
             ForEach(Array(rules.enumerated()), id: \.element.id) { index, rule in
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Toggle("Enable rule \(index + 1)", isOn: ruleBinding(identifier, rule.id, \.isEnabled))
-                            .labelsHidden()
+                        Toggle(
+                            "Enable rule \(index + 1)",
+                            isOn: ruleBinding(identifier, rule.id, \.isEnabled)
+                        )
+                        .labelsHidden()
                         Text("Rule \(index + 1)").fontWeight(.medium)
                         Spacer()
                         Button {
@@ -532,13 +546,13 @@ struct ApplicationSettingsView: View {
                         } label: {
                             Image(systemName: "arrow.up")
                         }.disabled(index == 0)
-                        .help("Move rule up")
+                            .help("Move rule up")
                         Button {
                             moveRule(identifier, from: index, by: 1)
                         } label: {
                             Image(systemName: "arrow.down")
                         }.disabled(index == rules.count - 1)
-                        .help("Move rule down")
+                            .help("Move rule down")
                         Button(role: .destructive) {
                             removeRule(identifier, id: rule.id)
                         } label: {
@@ -618,30 +632,33 @@ struct ApplicationSettingsView: View {
         return VStack(alignment: .leading, spacing: 16) {
             Text("Preview").font(.headline)
             VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Text("Original title")
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Button("Refresh") { refreshOpenWindowSample(for: identifier) }
-                        .buttonStyle(.link)
-                }
-                .font(.caption)
-                TextField(
-                    "Try a window title",
-                    text: Binding(
-                        get: { sampleTitles[identifier] ?? "" },
-                        set: { sampleTitles[identifier] = $0 }
-                    )
-                )
-                .modifier(TitleEditorFieldStyle())
-                .accessibilityLabel("Original title")
-            }
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Displayed title")
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("Original title")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Refresh") { refreshOpenWindowSample(for: identifier) }
+                            .buttonStyle(.link)
+                    }
                     .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(sample.isEmpty ? "Enter a title to preview" : result.isEmpty ? "Empty title" : result)
+                    TextField(
+                        "Try a window title",
+                        text: Binding(
+                            get: { sampleTitles[identifier] ?? "" },
+                            set: { sampleTitles[identifier] = $0 }
+                        )
+                    )
+                    .modifier(TitleEditorFieldStyle())
+                    .accessibilityLabel("Original title")
+                }
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Displayed title")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(
+                        sample.isEmpty
+                            ? "Enter a title to preview" : result.isEmpty ? "Empty title" : result
+                    )
                     .font(.body)
                     .foregroundStyle(sample.isEmpty || result.isEmpty ? .secondary : .primary)
                     .textSelection(.enabled)
@@ -649,22 +666,26 @@ struct ApplicationSettingsView: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.primary.opacity(0.035),
-                                in: RoundedRectangle(cornerRadius: 6))
+                    .background(
+                        Color.primary.opacity(0.035),
+                        in: RoundedRectangle(cornerRadius: 6)
+                    )
                     .overlay {
                         RoundedRectangle(cornerRadius: 6)
                             .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
                             .allowsHitTesting(false)
                     }
-            }
+                }
             }
 
             if sample.isEmpty {
-                Text(accessibility.isGranted
-                     ? "Enter a sample title, or open a window in this application and refresh."
-                     : "Enter a sample title, or allow Accessibility access in General to read an open window.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Text(
+                    accessibility.isGranted
+                        ? "Enter a sample title, or open a window in this application and refresh."
+                        : "Enter a sample title, or allow Accessibility access in General to read an open window."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
         }
     }
@@ -764,8 +785,10 @@ struct ApplicationSettingsView: View {
                                 Spacer()
                                 Circle()
                                     .strokeBorder(
-                                        selectedPreset == preset ? Color.accentColor : Color.secondary,
-                                        lineWidth: 1.5)
+                                        selectedPreset == preset
+                                            ? Color.accentColor : Color.secondary,
+                                        lineWidth: 1.5
+                                    )
                                     .background {
                                         if selectedPreset == preset {
                                             Circle()
@@ -792,9 +815,12 @@ struct ApplicationSettingsView: View {
                                     Spacer()
                                     Button("Reset preset") {
                                         preset.resetAppearance()
-                                        basicTextColor = Color(nsColor: NameplatePreset.basicTextColor)
-                                        accentRailColor = Color(nsColor: NameplatePreset.accentRailColor)
-                                        stickyNoteColor = Color(nsColor: NameplatePreset.stickyNoteColor)
+                                        basicTextColor = Color(
+                                            nsColor: NameplatePreset.basicTextColor)
+                                        accentRailColor = Color(
+                                            nsColor: NameplatePreset.accentRailColor)
+                                        stickyNoteColor = Color(
+                                            nsColor: NameplatePreset.stickyNoteColor)
                                         onChange()
                                     }
                                     .controlSize(.small)
@@ -990,8 +1016,10 @@ private struct TitleEditorFieldStyle: ViewModifier {
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.primary.opacity(0.035),
-                        in: RoundedRectangle(cornerRadius: 6))
+            .background(
+                Color.primary.opacity(0.035),
+                in: RoundedRectangle(cornerRadius: 6)
+            )
             .overlay {
                 RoundedRectangle(cornerRadius: 6)
                     .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)

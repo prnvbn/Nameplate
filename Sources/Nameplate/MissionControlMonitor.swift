@@ -33,7 +33,7 @@ final class MissionControlMonitor {
 
     private func poll(onChange: (Bool) -> Void) {
         guard let surfacePresent = missionControlSurfacePresent() else {
-            return // A failed window-list read says nothing about visibility.
+            return  // A failed window-list read says nothing about visibility.
         }
 
         if let isVisible = visibility.update(surfacePresent: surfacePresent) {
@@ -41,7 +41,7 @@ final class MissionControlMonitor {
         }
     }
 
-    private func missionControlSurfacePresent() -> Bool? {
+    func missionControlSurfacePresent() -> Bool? {
         // Resolve current PIDs so a Dock or WindowManager restart cannot leave
         // detection attached to a dead process.
         let dockPID = NSRunningApplication.runningApplications(
@@ -51,9 +51,11 @@ final class MissionControlMonitor {
             withBundleIdentifier: "com.apple.WindowManager"
         ).first?.processIdentifier
 
-        guard let windows = CGWindowListCopyWindowInfo(
-            [.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID
-        ) as? [[String: Any]] else {
+        guard
+            let windows = CGWindowListCopyWindowInfo(
+                [.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID
+            ) as? [[String: Any]]
+        else {
             return nil
         }
 
